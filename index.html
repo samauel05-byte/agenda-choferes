@@ -1807,7 +1807,7 @@
             const datosReporte = reporteRango.map((cita, index) => ({
                 'No.': index + 1,
                 'Fecha': cita.fecha || new Date(cita.inicio).toLocaleDateString('es-DO'),
-                'Proyecto': cita.proyecto || cita.area || '',
+                'Proyecto': cita.proyecto || '',
                 'Equipo': cita.equipo || '',
                 'Horas mañana': parseFloat(cita.horasMañana || 0),
                 'Horas tarde': parseFloat(cita.horasTarde || 0),
