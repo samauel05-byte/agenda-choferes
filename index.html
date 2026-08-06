@@ -1316,6 +1316,23 @@
             mostrarAlerta(mensajes[nuevoEstado] || 'Estado actualizado', 'success');
         }
 
+        // Marcar cita como urgente
+        async function marcarUrgente(id) {
+            const cita = citasCache.find(c => c.id === id);
+            if (!cita) return;
+
+            const { error } = await sb.from('reservas').update({ es_urgente: true }).eq('id', id);
+            if (error) {
+                console.error('Error marcando urgente:', error);
+                mostrarAlerta('❌ No se pudo marcar como urgente', 'error');
+                return;
+            }
+
+            await recargarCitas();
+            actualizarDashboard();
+            mostrarAlerta('⚠️ Marcado como urgente', 'success');
+        }
+
         // Arma el resumen de la asignación y abre WhatsApp con el mensaje ya
         // escrito, listo para que la persona solo toque "Enviar". Sin emojis:
         // algunos dispositivos corrompen los emojis al pasar por la URL de wa.me
@@ -1542,6 +1559,25 @@
                     continue;
                 }
 
+                // Verificar si cursor está en horario de almuerzo (12:00-13:00)
+                const horaActual = cursor.getHours() + cursor.getMinutes() / 60;
+                if (horaActual >= 12 && horaActual < 13) {
+                    // Saltar al final del almuerzo (13:00)
+                    cursor = horaDecimalADate(cursor, 13);
+                    continue;
+                }
+
+                // Verificar si durante el trabajo entra en almuerzo
+                const horaFinal = horaActual + restante;
+                if (horaActual < 12 && horaFinal > 12) {
+                    // La tarea cubre el almuerzo, pausar en almuerzo
+                    const horasAnteAlmuerzo = 12 - horaActual;
+                    cursor = new Date(cursor.getTime() + horasAnteAlmuerzo * 60 * 60 * 1000);
+                    cursor = horaDecimalADate(cursor, 13); // Saltar a 13:00
+                    restante -= horasAnteAlmuerzo;
+                    continue;
+                }
+
                 const disponibleHoras = (finVentana - cursor) / (60 * 60 * 1000);
                 if (restante <= disponibleHoras) {
                     cursor = new Date(cursor.getTime() + restante * 60 * 60 * 1000);
@@ -1755,20 +1791,25 @@
                                             ${(() => {
                                                 const estadoLabor = cita.estado_labor || cita.estado_recepcion || 'pendiente';
                                                 const info = {
-                                                    pendiente: { texto: '⏳ Pendiente de llegada a obra', color: '#92400E', fondo: '#FEF3C7' },
-                                                    llegada: { texto: '🚜 Llegó a la obra - Labor iniciada', color: '#065F46', fondo: '#D1FAE5' },
+                                                    pendiente: { texto: '❌ NO LLEGÓ', color: '#991B1B', fondo: '#FEE2E2' },
+                                                    llegada: { texto: '🚜 Llegó a la obra', color: '#065F46', fondo: '#D1FAE5' },
                                                     pausada: { texto: '⏸️ Labor pausada', color: '#7C2D12', fondo: '#FED7AA' },
-                                                    terminada: { texto: '✅ Labor terminada', color: '#065F46', fondo: '#DCFCE7' },
-                                                    recibido: { texto: '🚜 Llegó a la obra - Labor iniciada', color: '#065F46', fondo: '#D1FAE5' },
-                                                    no_recibido: { texto: '⏳ Pendiente de llegada a obra', color: '#92400E', fondo: '#FEF3C7' }
+                                                    terminada: { texto: '✅ Terminó su labor', color: '#065F46', fondo: '#DCFCE7' },
+                                                    recibido: { texto: '🚜 Llegó a la obra', color: '#065F46', fondo: '#D1FAE5' },
+                                                    no_recibido: { texto: '❌ NO LLEGÓ', color: '#991B1B', fondo: '#FEE2E2' }
                                                 }[estadoLabor];
                                                 return `
                                                     <div style="margin-top: 0.5rem;">
                                                         <span style="display: inline-block; font-size: 0.8rem; font-weight: 600; padding: 0.25rem 0.6rem; border-radius: 4px; color: ${info.color}; background: ${info.fondo};">${info.texto}</span>
-                                                        <div style="margin-top: 0.4rem; display: flex; gap: 0.4rem; flex-wrap: wrap;">
-                                                            ${estadoLabor === 'pendiente' ? `<button onclick="cambiarEstadoLabor('${cita.id}', 'llegada')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #10B981; color: white; border: none; border-radius: 4px; cursor: pointer;">🚜 Llega a la obra - Iniciar labor</button>` : ''}
-                                                            ${(estadoLabor === 'llegada' || estadoLabor === 'pausada') ? `<button onclick="cambiarEstadoLabor('${cita.id}', '${estadoLabor === 'llegada' ? 'pausada' : 'llegada'}')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: ${estadoLabor === 'llegada' ? '#F59E0B' : '#10B981'}; color: white; border: none; border-radius: 4px; cursor: pointer;">${estadoLabor === 'llegada' ? '⏸️ Pausar' : '▶️ Reanudar'}</button>` : ''}
-                                                            ${(estadoLabor === 'llegada' || estadoLabor === 'pausada') ? `<button onclick="cambiarEstadoLabor('${cita.id}', 'terminada')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #059669; color: white; border: none; border-radius: 4px; cursor: pointer;">✅ Terminación de labor</button>` : ''}
+                                                        <div style="margin-top: 0.4rem; display: flex; gap: 0.4rem; flex-wrap: wrap; flex-direction: column;">
+                                                            ${estadoLabor === 'pendiente' ? `<button onclick="cambiarEstadoLabor('${cita.id}', 'llegada')" style="padding: 0.5rem 0.8rem; font-size: 0.85rem; background: #3B82F6; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">📍 Marcar llegada a obra</button>` : ''}
+                                                            ${(estadoLabor === 'llegada' || estadoLabor === 'pausada') ? `
+                                                                <div style="display: flex; gap: 0.4rem;">
+                                                                    <button onclick="cambiarEstadoLabor('${cita.id}', '${estadoLabor === 'llegada' ? 'pausada' : 'llegada'}')" style="flex: 1; padding: 0.5rem 0.8rem; font-size: 0.85rem; background: ${estadoLabor === 'llegada' ? '#F59E0B' : '#10B981'}; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">${estadoLabor === 'llegada' ? '⏸️ Pausar' : '▶️ Iniciar'}</button>
+                                                                    <button onclick="cambiarEstadoLabor('${cita.id}', 'terminada')" style="flex: 1; padding: 0.5rem 0.8rem; font-size: 0.85rem; background: #10B981; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">✅ Terminó su labor</button>
+                                                                </div>
+                                                            ` : ''}
+                                                            ${estadoLabor !== 'terminada' ? `<button onclick="marcarUrgente('${cita.id}')" style="padding: 0.5rem 0.8rem; font-size: 0.85rem; background: #EF4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">⚠️ Marcar Urgente</button>` : ''}
                                                         </div>
                                                     </div>
                                                 `;
