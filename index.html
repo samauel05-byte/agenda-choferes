@@ -1,1 +1,528 @@
-<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Porto Valencia - Programador de Logística</title><style>*{margin:0;padding:0;box-sizing:border-box}:root{--turquesa:#00BCD4;--turquesa-dark:#17A2B8;--naranja:#E85E2E;--gris:#808080;--gris-dark:#333;--gris-light:#F5F5F5;--blanco:#FFF;--error:#d32f2f;--success:#388e3c}body{font-family:'Segoe UI',sans-serif;background:#f0f2f5;color:var(--gris-dark);line-height:1.6}header{background:linear-gradient(135deg,var(--blanco) 0%,var(--gris-light) 100%);border-bottom:3px solid var(--turquesa);box-shadow:0 2px 8px rgba(0,0,0,.1);padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between}.logo-container{display:flex;align-items:center;gap:1rem}.logo-svg{width:60px;height:60px}.logo-text{display:flex;flex-direction:column}.logo-text h1{font-size:1.5rem;color:var(--naranja);font-weight:bold;letter-spacing:1px}.logo-text p{font-size:.8rem;color:var(--turquesa);font-weight:600}.header-actions{display:flex;gap:1rem;align-items:center}.btn-header-icon{background:var(--turquesa);color:var(--blanco);border:none;padding:.6rem 1.2rem;border-radius:4px;cursor:pointer;font-weight:600;font-size:.9rem;transition:all .3s ease}.btn-header-icon:hover{background:var(--turquesa-dark);transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,188,212,.3)}.container{max-width:1400px;margin:2rem auto;padding:0 1rem}#alert{background:var(--turquesa);color:var(--blanco);padding:1rem;border-radius:4px;margin-bottom:1.5rem;display:none}#alert.show{display:block}.panel-dividido{display:grid;grid-template-columns:1fr 1fr;gap:2rem;margin-bottom:2rem}@media (max-width:1024px){.panel-dividido{grid-template-columns:1fr}}.card{background:var(--blanco);border-radius:8px;padding:1.5rem;box-shadow:0 2px 8px rgba(0,0,0,.08);border-left:4px solid var(--turquesa);transition:all .3s ease}.card:hover{box-shadow:0 4px 16px rgba(0,0,0,.12)}.card.accent-naranja{border-left-color:var(--naranja)}.section-title{font-size:1.3rem;font-weight:bold;color:var(--naranja);margin-bottom:1.5rem;display:flex;align-items:center;gap:.5rem}.section-title::before{content:'';width:3px;height:1.3rem;background:var(--turquesa);border-radius:2px}.form-group{margin-bottom:1.5rem}.form-group label{display:block;margin-bottom:.5rem;font-weight:600;color:var(--gris-dark);font-size:.95rem}.form-group input,.form-group select,.form-group textarea{width:100%;padding:.75rem;border:2px solid #e0e0e0;border-radius:4px;font-size:.95rem;font-family:inherit;transition:all .3s ease}.form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:var(--turquesa);box-shadow:0 0 0 3px rgba(0,188,212,.1)}.form-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem}@media (max-width:768px){.form-row{grid-template-columns:1fr}}.btn{padding:.75rem 1.5rem;border:none;border-radius:4px;font-size:.95rem;font-weight:600;cursor:pointer;transition:all .3s ease;display:inline-flex;align-items:center;gap:.5rem}.btn-primary{background:var(--turquesa);color:var(--blanco)}.btn-primary:hover{background:var(--turquesa-dark);transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,188,212,.3)}.btn-secondary{background:var(--naranja);color:var(--blanco)}.btn-secondary:hover{background:#d64520;transform:translateY(-2px);box-shadow:0 4px 12px rgba(232,94,46,.3)}.btn-danger{background:var(--error);color:var(--blanco)}.btn-danger:hover{background:#b71c1c}.btn-success{background:var(--success);color:var(--blanco)}.btn-success:hover{background:#2e7d32}.btn-block{width:100%;justify-content:center}.card-equipos{background:var(--blanco);border-radius:8px;padding:1.5rem;margin-bottom:1.5rem;border-top:4px solid var(--turquesa);box-shadow:0 2px 8px rgba(0,0,0,.08);transition:all .3s ease}.card-equipos:hover{box-shadow:0 4px 16px rgba(0,0,0,.12)}.equipo-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;border-bottom:2px solid #e0e0e0;padding-bottom:1rem}.equipo-nombre{font-size:1.1rem;font-weight:bold;color:var(--naranja)}.badge{display:inline-block;padding:.4rem .8rem;border-radius:20px;font-size:.8rem;font-weight:600}.badge-activo{background:rgba(56,142,60,.2);color:var(--success)}.badge-pausa{background:rgba(255,152,0,.2);color:#ff9800}.badge-terminado{background:rgba(158,158,158,.2);color:var(--gris)}.equipo-info{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;margin-bottom:1rem;font-size:.9rem}.info-item{background:#f5f5f5;padding:.75rem;border-radius:4px;border-left:3px solid var(--turquesa)}.info-label{font-weight:600;color:var(--gris);font-size:.8rem;text-transform:uppercase}.info-value{color:var(--gris-dark);font-weight:600;margin-top:.3rem}.equipo-acciones{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.8rem}.equipo-acciones .btn{padding:.6rem 1rem;font-size:.85rem}.modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center}.modal-overlay.active{display:flex}.modal-box{background:var(--blanco);border-radius:8px;padding:2rem;max-width:500px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.2);max-height:90vh;overflow-y:auto}.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;border-bottom:2px solid var(--turquesa);padding-bottom:1rem}.modal-header h2{color:var(--naranja);font-size:1.3rem}.close-btn{background:none;border:none;font-size:1.5rem;cursor:pointer;color:var(--gris);transition:all .3s ease}.close-btn:hover{color:var(--naranja)}.modal-footer{display:flex;gap:1rem;margin-top:2rem;justify-content:flex-end}.modo-admin{background:rgba(232,94,46,.1);border-left:4px solid var(--naranja);padding:1rem;border-radius:4px;margin-bottom:1.5rem;font-weight:600;color:var(--naranja)}.tiempo-transcurrido{background:#f5f5f5;padding:.75rem;border-radius:4px;font-weight:600;color:var(--gris-dark);border-left:3px solid var(--naranja)}footer{background:var(--gris-dark);color:var(--blanco);text-align:center;padding:2rem;margin-top:3rem;border-top:3px solid var(--turquesa)}@media (max-width:768px){header{flex-direction:column;gap:1rem}.modal-box{width:95%;padding:1.5rem}}</style></head><body><header><div class="logo-container"><svg class="logo-svg" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="vela-gradient" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" style="stop-color:#808080;stop-opacity:1" /><stop offset="100%" style="stop-color:#a0a0a0;stop-opacity:1" /></linearGradient></defs><polygon points="30,10 50,40 30,45 10,40" fill="url(#vela-gradient)" stroke="#FFFFFF" stroke-width="1.5"/><line x1="30" y1="10" x2="30" y2="45" stroke="#FFFFFF" stroke-width="2"/><line x1="10" y1="48" x2="50" y2="48" stroke="#00BCD4" stroke-width="3" stroke-linecap="round"/></svg><div class="logo-text"><h1>PORTO VALENCIA</h1><p>Programador Logistico</p></div></div><div class="header-actions"><button class="btn-header-icon" onclick="mostrarFormulario()">+ Nuevo Equipo</button><button class="btn-header-icon" onclick="toggleModoAdmin()" style="background:var(--naranja);">Admin</button></div></header><div class="container"><div id="alert"></div><div id="modoAdminIndicador" class="modo-admin" style="display:none;">MODO ADMINISTRADOR ACTIVO</div><div class="panel-dividido"><div class="card"><h2 class="section-title">Asignar Equipo</h2><form id="formularioAsignacion" onsubmit="asignarEquipo(event)"><div class="form-group"><label for="nombreEquipo">Nombre del Equipo</label><input type="text" id="nombreEquipo" placeholder="Ej: Grua 001" required></div><div class="form-row"><div class="form-group"><label for="tipo">Tipo de Equipo</label><select id="tipo" required><option value="">Seleccionar</option><option value="Grua">Grua</option><option value="Excavadora">Excavadora</option><option value="Montacarga">Montacarga</option><option value="Camion">Camion</option></select></div><div class="form-group"><label for="operador">Operador</label><input type="text" id="operador" placeholder="Nombre del operador" required></div></div><div class="form-row"><div class="form-group"><label for="obra">Obra/Proyecto</label><input type="text" id="obra" placeholder="Ej: Proyecto X" required></div><div class="form-group"><label for="horaInicio">Hora Inicio</label><input type="time" id="horaInicio" required></div></div><div class="form-row"><div class="form-group"><label for="horaFin">Hora Fin Estimada</label><input type="time" id="horaFin" required></div><div class="form-group"><label for="ubicacion">Ubicacion</label><input type="text" id="ubicacion" placeholder="Direccion" required></div></div><div id="costoEstimado" class="form-group" style="display:none;"><label for="costo">Costo Estimado (USD)</label><input type="number" id="costo" placeholder="0.00" step="0.01"></div><div id="urgenciaAprobacionGroup" class="form-group" style="display:none;"><label for="urgencia">Nivel de Urgencia</label><select id="urgencia"><option value="normal">Normal</option><option value="media">Media</option><option value="alta">Alta</option></select></div><div class="form-group"><label for="notas">Notas Adicionales</label><textarea id="notas" placeholder="Informacion importante..." rows="3"></textarea></div><button type="submit" class="btn btn-primary btn-block">Asignar Equipo</button></form></div><div class="card"><h2 class="section-title">Estado de Equipos</h2><div id="dashboardEquipos"><p style="text-align:center;color:var(--gris);padding:2rem;">No hay equipos asignados aun. Crea uno nuevo para comenzar.</p></div></div></div><div class="card"><h2 class="section-title">Equipos en Operacion</h2><div id="cardEquipos"></div></div><div class="card accent-naranja"><h2 class="section-title">Equipo Temporal / Express</h2><div id="cardEquiposTemporales" style="display:none;margin-bottom:1.5rem;"><div id="listaEquiposTemporales"></div></div><p style="text-align:center;color:var(--gris);">No hay equipos temporales registrados.</p></div></div><div id="modalEdicion" class="modal-overlay" onclick="cerrarModalSiEsOverlay(event)"><div class="modal-box"><div class="modal-header"><h2>Editar Equipo</h2><button class="close-btn" onclick="cerrarModal('modalEdicion')">&times;</button></div><form id="formularioEdicion" onsubmit="guardarEdicion(event)"><div class="form-group"><label for="editNombreEquipo">Nombre del Equipo</label><input type="text" id="editNombreEquipo" required></div><div class="form-group"><label for="editOperador">Operador</label><input type="text" id="editOperador" required></div><div class="form-group"><label for="editObra">Obra/Proyecto</label><input type="text" id="editObra" required></div><div class="form-group"><label for="editUbicacion">Ubicacion</label><input type="text" id="editUbicacion" required></div><div id="editCostoEstimado" class="form-group" style="display:none;"><label for="editCosto">Costo Estimado (USD)</label><input type="number" id="editCosto" step="0.01"></div><div class="modal-footer"><button type="button" class="btn btn-danger" onclick="cerrarModal('modalEdicion')">Cancelar</button><button type="submit" class="btn btn-primary">Guardar Cambios</button></div></form></div></div><div id="modalPausa" class="modal-overlay" onclick="cerrarModalSiEsOverlay(event)"><div class="modal-box"><div class="modal-header"><h2>Registrar Pausa</h2><button class="close-btn" onclick="cerrarModal('modalPausa')">&times;</button></div><div class="form-group"><label for="pausaMotivo">Motivo de la Pausa</label><select id="pausaMotivo"><option value="almuerzo">Almuerzo (12:00-13:00)</option><option value="descanso">Descanso</option><option value="mantenimiento">Mantenimiento</option><option value="clima">Clima</option><option value="otro">Otro</option></select></div><div class="form-group"><label for="pausaNota">Nota Adicional</label><textarea id="pausaNota" rows="3" placeholder="Informacion sobre la pausa..."></textarea></div><div class="modal-footer"><button type="button" class="btn btn-danger" onclick="cerrarModal('modalPausa')">Cancelar</button><button type="button" class="btn btn-secondary" onclick="guardarPausa()">Confirmar Pausa</button></div></div></div><div id="modalReporte" class="modal-overlay" onclick="cerrarModalSiEsOverlay(event)"><div class="modal-box"><div class="modal-header"><h2>Reporte Final de Labor</h2><button class="close-btn" onclick="cerrarModal('modalReporte')">&times;</button></div><form id="formularioReporte" onsubmit="guardarReporte(event)"><div class="form-group"><label for="reporteRendimiento">Rendimiento (%)</label><input type="number" id="reporteRendimiento" min="0" max="100" step="1" required></div><div class="form-group"><label for="reporteObservaciones">Observaciones</label><textarea id="reporteObservaciones" rows="4" placeholder="Problemas encontrados, trabajos completados, etc..." required></textarea></div><div class="form-group"><label for="reporteHoraReal">Hora Real de Termino</label><input type="time" id="reporteHoraReal" required></div><div class="form-group"><label><input type="checkbox" id="reporteProblemas"> Hubo problemas tecnicos?</label></div><div id="reporteInfo" class="form-group" style="display:none;"><label for="reporteDetalleProblemas">Detalle de Problemas</label><textarea id="reporteDetalleProblemas" rows="3"></textarea></div><div class="modal-footer"><button type="button" class="btn btn-danger" onclick="cerrarModal('modalReporte')">Cancelar</button><button type="submit" class="btn btn-success">Finalizar Labor</button></div></form></div></div><footer><p>&copy; 2024 Porto Valencia - Programador de Logistica | Todos los derechos reservados</p><p style="font-size:.9rem;margin-top:.5rem;">Eficiencia en la gestion de equipos y operaciones</p></footer><script>let equiposActivos=[],equipoEnEdicion=null,equipoEnPausa=null,modoAdminActivo=false;const STORAGE_KEY='equipos_porto_valencia',ADMIN_MODE_KEY='admin_mode_active';function inicializar(){cargarEquipos();verificarPausasAutomaticas();renderizarDashboard();setInterval(verificarPausasAutomaticas,60000)}function cargarEquipos(){const datos=localStorage.getItem(STORAGE_KEY);if(datos){equiposActivos=JSON.parse(datos)}modoAdminActivo=localStorage.getItem(ADMIN_MODE_KEY)==='true';actualizarIndicadorAdmin()}function guardarEquipos(){localStorage.setItem(STORAGE_KEY,JSON.stringify(equiposActivos))}function mostrarFormulario(){document.getElementById('formularioAsignacion').reset();document.getElementById('costoEstimado').style.display='none';document.getElementById('urgenciaAprobacionGroup').style.display='none'}function asignarEquipo(event){event.preventDefault();const equipo={id:Date.now().toString(),nombre:document.getElementById('nombreEquipo').value,tipo:document.getElementById('tipo').value,operador:document.getElementById('operador').value,obra:document.getElementById('obra').value,horaInicio:document.getElementById('horaInicio').value,horaFin:document.getElementById('horaFin').value,ubicacion:document.getElementById('ubicacion').value,costo:document.getElementById('costo').value||0,urgencia:document.getElementById('urgencia').value||'normal',notas:document.getElementById('notas').value,estado:'activo',tiempoInicio:new Date(),pausas:[],reporte:null};equiposActivos.push(equipo);guardarEquipos();renderizarDashboard();mostrarAlerta('Equipo asignado correctamente','success');document.getElementById('formularioAsignacion').reset()}function renderizarDashboard(){const dashboard=document.getElementById('dashboardEquipos'),cardEquipos=document.getElementById('cardEquipos');if(equiposActivos.length===0){dashboard.innerHTML='<p style="text-align:center;color:var(--gris);padding:2rem;">No hay equipos asignados aun.</p>';cardEquipos.innerHTML='';return}let dashboardHTML='<div class="equipo-info">';const activos=equiposActivos.filter(e=>e.estado==='activo').length,pausados=equiposActivos.filter(e=>e.estado==='pausa').length,terminados=equiposActivos.filter(e=>e.estado==='terminado').length;dashboardHTML+=`<div class="info-item"><div class="info-label">Total</div><div class="info-value" style="font-size:1.3rem;">${equiposActivos.length}</div></div><div class="info-item"><div class="info-label">Activos</div><div class="info-value" style="color:var(--success);font-size:1.3rem;">${activos}</div></div><div class="info-item"><div class="info-label">En Pausa</div><div class="info-value" style="color:#ff9800;font-size:1.3rem;">${pausados}</div></div><div class="info-item"><div class="info-label">Terminados</div><div class="info-value" style="color:var(--gris);font-size:1.3rem;">${terminados}</div></div></div>`;dashboard.innerHTML=dashboardHTML;let cardsHTML='';equiposActivos.forEach(equipo=>{const tiempoTranscurrido=calcularTiempoTranscurrido(equipo.tiempoInicio),badgeEstado=equipo.estado==='activo'?'badge-activo':equipo.estado==='pausa'?'badge-pausa':'badge-terminado',textoEstado=equipo.estado==='activo'?'En Operacion':equipo.estado==='pausa'?'En Pausa':'Terminado';cardsHTML+=`<div class="card-equipos"><div class="equipo-header"><div class="equipo-nombre">${equipo.nombre}</div><span class="badge ${badgeEstado}">${textoEstado}</span></div><div class="equipo-info"><div class="info-item"><div class="info-label">Operador</div><div class="info-value">${equipo.operador}</div></div><div class="info-item"><div class="info-label">Tipo</div><div class="info-value">${equipo.tipo}</div></div><div class="info-item"><div class="info-label">Obra</div><div class="info-value">${equipo.obra}</div></div><div class="info-item"><div class="info-label">Ubicacion</div><div class="info-value">${equipo.ubicacion}</div></div>${equipo.costo?`<div class="info-item"><div class="info-label">Costo Est.</div><div class="info-value">USD $${parseFloat(equipo.costo).toFixed(2)}</div></div>`:''}< div class="info-item"><div class="info-label">Tiempo Transcurrido</div><div class="info-value tiempo-transcurrido">${tiempoTranscurrido}</div></div></div>${equipo.notas?`<p style="background:#f5f5f5;padding:0.75rem;border-radius:4px;margin:1rem 0;font-size:0.9rem;"><strong>Notas:</strong> ${equipo.notas}</p>`:''}<div class="equipo-acciones">${equipo.estado!=='terminado'?`<button class="btn btn-primary" onclick="abrirModalPausa('${equipo.id}')">Pausar</button><button class="btn btn-secondary" onclick="abrirModalEdicion('${equipo.id}')">Editar</button>`:''} ${equipo.estado!=='terminado'?`<button class="btn btn-success" onclick="abrirModalReporte('${equipo.id}')">Terminar</button>`:`<button class="btn btn-primary" onclick="verReporte('${equipo.id}')">Ver Reporte</button>`}<button class="btn btn-danger" onclick="eliminarEquipo('${equipo.id}')">Eliminar</button></div></div>`});cardEquipos.innerHTML=cardsHTML}function calcularTiempoTranscurrido(fechaInicio){const ahora=new Date(),inicio=new Date(fechaInicio),diferencia=Math.floor((ahora-inicio)/1000),horas=Math.floor(diferencia/3600),minutos=Math.floor((diferencia%3600)/60);return`${horas}h ${minutos}m`}function abrirModalEdicion(equipoId){equipoEnEdicion=equiposActivos.find(e=>e.id===equipoId);if(!equipoEnEdicion)return;document.getElementById('editNombreEquipo').value=equipoEnEdicion.nombre;document.getElementById('editOperador').value=equipoEnEdicion.operador;document.getElementById('editObra').value=equipoEnEdicion.obra;document.getElementById('editUbicacion').value=equipoEnEdicion.ubicacion;document.getElementById('editCosto').value=equipoEnEdicion.costo;if(modoAdminActivo){document.getElementById('editCostoEstimado').style.display='block'}abrirModal('modalEdicion')}function guardarEdicion(event){event.preventDefault();if(!equipoEnEdicion)return;equipoEnEdicion.nombre=document.getElementById('editNombreEquipo').value;equipoEnEdicion.operador=document.getElementById('editOperador').value;equipoEnEdicion.obra=document.getElementById('editObra').value;equipoEnEdicion.ubicacion=document.getElementById('editUbicacion').value;equipoEnEdicion.costo=document.getElementById('editCosto').value||0;guardarEquipos();renderizarDashboard();cerrarModal('modalEdicion');mostrarAlerta('Equipo actualizado correctamente','success');equipoEnEdicion=null}function abrirModalPausa(equipoId){equipoEnPausa=equiposActivos.find(e=>e.id===equipoId);if(!equipoEnPausa)return;document.getElementById('pausaMotivo').value='almuerzo';document.getElementById('pausaNota').value='';abrirModal('modalPausa')}function guardarPausa(){if(!equipoEnPausa)return;const motivo=document.getElementById('pausaMotivo').value,nota=document.getElementById('pausaNota').value;equipoEnPausa.pausas.push({inicio:new Date(),motivo:motivo,nota:nota,fin:null});equipoEnPausa.estado='pausa';guardarEquipos();renderizarDashboard();cerrarModal('modalPausa');mostrarAlerta(`Equipo en pausa por: ${motivo}`,'success');equipoEnPausa=null}function abrirModalReporte(equipoId){equipoEnPausa=equiposActivos.find(e=>e.id===equipoId);if(!equipoEnPausa)return;document.getElementById('formularioReporte').reset();abrirModal('modalReporte')}function guardarReporte(event){event.preventDefault();if(!equipoEnPausa)return;const rendimiento=document.getElementById('reporteRendimiento').value,observaciones=document.getElementById('reporteObservaciones').value,horaReal=document.getElementById('reporteHoraReal').value,problemas=document.getElementById('reporteProblemas').checked,detalleProblemas=document.getElementById('reporteDetalleProblemas').value;equipoEnPausa.reporte={rendimiento:rendimiento,observaciones:observaciones,horaReal:horaReal,problemas:problemas,detalleProblemas:detalleProblemas,fecha:new Date()};equipoEnPausa.estado='terminado';guardarEquipos();renderizarDashboard();cerrarModal('modalReporte');mostrarAlerta('Labor finalizada. Reporte registrado correctamente.','success');equipoEnPausa=null}function verReporte(equipoId){const equipo=equiposActivos.find(e=>e.id===equipoId);if(!equipo||!equipo.reporte){mostrarAlerta('No hay reporte disponible','error');return}const reporte=equipo.reporte;alert(`REPORTE FINAL - ${equipo.nombre}\n\nRendimiento: ${reporte.rendimiento}%\nHora Real de Termino: ${reporte.horaReal}\nProblemas Tecnicos: ${reporte.problemas?'Si':'No'}\n${reporte.problemas?'Detalle: '+reporte.detalleProblemas+'\n':''}\nObservaciones:\n${reporte.observaciones}`)}function verificarPausasAutomaticas(){const ahora=new Date(),hora=ahora.getHours(),minutos=ahora.getMinutes(),horaActual=hora*60+minutos,HORA_ALMUERZO_INICIO=720,HORA_ALMUERZO_FIN=780;equiposActivos.forEach(equipo=>{if(equipo.estado!=='activo')return;const tieneAlmuerzoRegistrado=equipo.pausas.some(p=>p.motivo==='almuerzo'&&new Date(p.inicio).toDateString()===ahora.toDateString());if(horaActual>=HORA_ALMUERZO_INICIO&&horaActual<HORA_ALMUERZO_FIN&&!tieneAlmuerzoRegistrado){equipo.pausas.push({inicio:new Date(),motivo:'almuerzo',nota:'Pausa automatica de almuerzo',fin:null});equipo.estado='pausa';mostrarAlerta(`${equipo.nombre}: Pausa automatica de almuerzo activada`,'info')}});guardarEquipos();if(equiposActivos.some(e=>e.estado==='pausa'&&e.pausas.some(p=>p.motivo==='almuerzo'))){renderizarDashboard()}}function toggleModoAdmin(){modoAdminActivo=!modoAdminActivo;localStorage.setItem(ADMIN_MODE_KEY,modoAdminActivo);actualizarIndicadorAdmin();if(modoAdminActivo){document.getElementById('costoEstimado').style.display='block';document.getElementById('urgenciaAprobacionGroup').style.display='block';mostrarAlerta('Modo Administrador ACTIVADO','success')}else{document.getElementById('costoEstimado').style.display='none';document.getElementById('urgenciaAprobacionGroup').style.display='none';mostrarAlerta('Modo Administrador DESACTIVADO','info')}}function actualizarIndicadorAdmin(){const indicador=document.getElementById('modoAdminIndicador');if(modoAdminActivo){indicador.style.display='block'}else{indicador.style.display='none'}}function eliminarEquipo(equipoId){if(!confirm('Esta seguro de que desea eliminar este equipo?'))return;equiposActivos=equiposActivos.filter(e=>e.id!==equipoId);guardarEquipos();renderizarDashboard();mostrarAlerta('Equipo eliminado correctamente','success')}function mostrarAlerta(mensaje,tipo='info'){const alert=document.getElementById('alert');alert.textContent=mensaje;alert.classList.add('show');alert.style.background=tipo==='success'?'var(--success)':tipo==='error'?'var(--error)':'var(--turquesa)';setTimeout(()=>{alert.classList.remove('show')},4000)}function abrirModal(modalId){document.getElementById(modalId).classList.add('active')}function cerrarModal(modalId){document.getElementById(modalId).classList.remove('active')}function cerrarModalSiEsOverlay(event){if(event.target.classList.contains('modal-overlay')){event.target.classList.remove('active')}}document.addEventListener('change',function(e){if(e.target.id==='reporteProblemas'){document.getElementById('reporteInfo').style.display=e.target.checked?'block':'none'}});window.addEventListener('load',inicializar);</script></body></html>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Programador de Logística - Porto Valencia</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --turquesa: #00BCD4;
+            --turquesa-dark: #17A2B8;
+            --naranja: #E85E2E;
+            --gris: #808080;
+            --gris-dark: #333;
+            --gris-light: #F5F5F5;
+            --blanco: #FFF;
+            --error: #d32f2f;
+            --success: #388e3c;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #f0f2f5;
+            color: var(--gris-dark);
+            line-height: 1.6;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--blanco) 0%, var(--gris-light) 100%);
+            border-bottom: 3px solid var(--turquesa);
+            box-shadow: 0 2px 8px rgba(0,0,0,.1);
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo-text h1 {
+            font-size: 1.5rem;
+            color: var(--naranja);
+            font-weight: bold;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .tab-btn {
+            padding: 1rem 1.5rem;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--gris);
+            border-bottom: 3px solid transparent;
+            transition: all .3s ease;
+        }
+
+        .tab-btn.active {
+            color: var(--turquesa);
+            border-bottom-color: var(--turquesa);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .card {
+            background: var(--blanco);
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,.08);
+            border-left: 4px solid var(--turquesa);
+            margin-bottom: 2rem;
+        }
+
+        .section-title {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: var(--naranja);
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: .5rem;
+            font-weight: 600;
+            color: var(--gris-dark);
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: .75rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 4px;
+            font-family: inherit;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--turquesa);
+            box-shadow: 0 0 0 3px rgba(0,188,212,.1);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: .75rem 1.5rem;
+            border: none;
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .3s ease;
+        }
+
+        .btn-primary {
+            background: var(--turquesa);
+            color: var(--blanco);
+        }
+
+        .btn-primary:hover {
+            background: var(--turquesa-dark);
+        }
+
+        .btn-secondary {
+            background: var(--naranja);
+            color: var(--blanco);
+        }
+
+        .btn-danger {
+            background: var(--error);
+            color: var(--blanco);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: var(--blanco);
+        }
+
+        .btn-block {
+            width: 100%;
+        }
+
+        .item-card {
+            background: var(--blanco);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border-top: 4px solid var(--turquesa);
+            box-shadow: 0 2px 8px rgba(0,0,0,.08);
+        }
+
+        .item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .item-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: var(--naranja);
+        }
+
+        .item-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .item-actions .btn {
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+        }
+
+        .msg {
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+
+        .msg-success {
+            background: #e8f5e9;
+            color: var(--success);
+        }
+
+        .msg-error {
+            background: #ffebee;
+            color: var(--error);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: var(--gris);
+        }
+
+        footer {
+            background: var(--gris-dark);
+            color: var(--blanco);
+            text-align: center;
+            padding: 2rem;
+            margin-top: 3rem;
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .tabs {
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div>
+            <h1 style="color: var(--naranja); font-size: 1.5rem;">🚀 PORTO VALENCIA</h1>
+            <p style="color: var(--turquesa); font-size: 0.9rem;">Programador Logístico</p>
+        </div>
+    </header>
+
+    <div class="container">
+        <div id="mensaje"></div>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="cambiarTab('proyectos')">Proyectos</button>
+            <button class="tab-btn" onclick="cambiarTab('areas')">Áreas</button>
+            <button class="tab-btn" onclick="cambiarTab('equipos')">Equipos</button>
+        </div>
+
+        <!-- TAB: PROYECTOS -->
+        <div id="tab-proyectos" class="tab-content active">
+            <div class="card">
+                <h2 class="section-title">Nuevo Proyecto</h2>
+                <form id="formProyecto" onsubmit="guardarProyecto(event)">
+                    <div class="form-group">
+                        <label for="nomProyecto">Nombre del Proyecto</label>
+                        <input type="text" id="nomProyecto" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="esGarantia">
+                            <input type="checkbox" id="esGarantia"> Es de garantía
+                        </label>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Guardar Proyecto</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2 class="section-title">Proyectos Registrados</h2>
+                <div id="listaProyectos" class="loading">Cargando...</div>
+            </div>
+        </div>
+
+        <!-- TAB: ÁREAS -->
+        <div id="tab-areas" class="tab-content">
+            <div class="card">
+                <h2 class="section-title">Nueva Área de Proyecto</h2>
+                <form id="formArea" onsubmit="guardarArea(event)">
+                    <div class="form-group">
+                        <label for="nomArea">Nombre del Área</label>
+                        <input type="text" id="nomArea" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="descArea">Descripción</label>
+                        <textarea id="descArea" rows="3"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Guardar Área</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2 class="section-title">Áreas Registradas</h2>
+                <div id="listaAreas" class="loading">Cargando...</div>
+            </div>
+        </div>
+
+        <!-- TAB: EQUIPOS -->
+        <div id="tab-equipos" class="tab-content">
+            <div class="card">
+                <h2 class="section-title">Nuevo Equipo</h2>
+                <form id="formEquipo" onsubmit="guardarEquipo(event)">
+                    <div class="form-group">
+                        <label for="nomEquipo">Nombre del Equipo</label>
+                        <input type="text" id="nomEquipo" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="codEquipo">Código</label>
+                            <input type="text" id="codEquipo" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="tipoEquipo">Tipo</label>
+                            <select id="tipoEquipo" required>
+                                <option>Grúa</option>
+                                <option>Excavadora</option>
+                                <option>Montacarga</option>
+                                <option>Camión</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="proyEquipo">Proyecto</label>
+                            <select id="proyEquipo"></select>
+                        </div>
+                        <div class="form-group">
+                            <label for="areaEquipo">Área</label>
+                            <select id="areaEquipo"></select>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Guardar Equipo</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2 class="section-title">Equipos Registrados</h2>
+                <div id="listaEquipos" class="loading">Cargando...</div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2024 Porto Valencia - Programador de Logística</p>
+    </footer>
+
+    <script>
+        const SUPABASE_URL = 'https://aatkhrckyibdserbgvno.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFhdGtocmNreWliZHNlcmJndm5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUxNTkxNjQsImV4cCI6MjEwMDczNTE2NH0.KG8XZZxOaW8zPvUVVG8VkQvRpN8Y9pF0TW2QdVhEn5c';
+
+        const { createClient } = window.supabase;
+        const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        function mostrarMsg(texto, tipo = 'success') {
+            const div = document.getElementById('mensaje');
+            div.innerHTML = `<div class="msg msg-${tipo}">${texto}</div>`;
+            setTimeout(() => div.innerHTML = '', 4000);
+        }
+
+        function cambiarTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(`tab-${tab}`).classList.add('active');
+            event.target.classList.add('active');
+
+            if (tab === 'proyectos') cargarProyectos();
+            else if (tab === 'areas') cargarAreas();
+            else if (tab === 'equipos') cargarEquipos();
+        }
+
+        // PROYECTOS
+        async function cargarProyectos() {
+            const { data } = await supabase.from('proyectos').select('*').order('created_at', { ascending: false });
+            const html = !data?.length ? '<p style="color: #999;">No hay proyectos</p>' :
+                data.map(p => `
+                    <div class="item-card">
+                        <div class="item-header">
+                            <div class="item-title">${p.nombre}</div>
+                            <div class="item-actions">
+                                <button class="btn btn-danger" onclick="eliminarProyecto(${p.id})">Eliminar</button>
+                            </div>
+                        </div>
+                        <p style="font-size: 0.9rem; color: #666;">Garantía: ${p.es_garantia ? 'Sí' : 'No'}</p>
+                    </div>
+                `).join('');
+            document.getElementById('listaProyectos').innerHTML = html;
+        }
+
+        async function guardarProyecto(e) {
+            e.preventDefault();
+            const { error } = await supabase.from('proyectos').insert([{
+                nombre: document.getElementById('nomProyecto').value,
+                es_garantia: document.getElementById('esGarantia').checked
+            }]);
+            if (error) return mostrarMsg(`Error: ${error.message}`, 'error');
+            mostrarMsg('✓ Proyecto guardado');
+            document.getElementById('formProyecto').reset();
+            cargarProyectos();
+            cargarSelectProyectos();
+        }
+
+        async function eliminarProyecto(id) {
+            if (!confirm('¿Eliminar?')) return;
+            const { error } = await supabase.from('proyectos').delete().eq('id', id);
+            if (error) return mostrarMsg(`Error: ${error.message}`, 'error');
+            mostrarMsg('✓ Eliminado');
+            cargarProyectos();
+        }
+
+        // ÁREAS
+        async function cargarAreas() {
+            const { data } = await supabase.from('areas').select('*').order('created_at', { ascending: false });
+            const html = !data?.length ? '<p style="color: #999;">No hay áreas</p>' :
+                data.map(a => `
+                    <div class="item-card">
+                        <div class="item-header">
+                            <div class="item-title">${a.nombre}</div>
+                            <div class="item-actions">
+                                <button class="btn btn-danger" onclick="eliminarArea(${a.id})">Eliminar</button>
+                            </div>
+                        </div>
+                        <p style="font-size: 0.9rem; color: #666;">${a.descripcion || 'Sin descripción'}</p>
+                    </div>
+                `).join('');
+            document.getElementById('listaAreas').innerHTML = html;
+        }
+
+        async function guardarArea(e) {
+            e.preventDefault();
+            const { error } = await supabase.from('areas').insert([{
+                nombre: document.getElementById('nomArea').value,
+                descripcion: document.getElementById('descArea').value
+            }]);
+            if (error) return mostrarMsg(`Error: ${error.message}`, 'error');
+            mostrarMsg('✓ Área guardada');
+            document.getElementById('formArea').reset();
+            cargarAreas();
+            cargarSelectAreas();
+        }
+
+        async function eliminarArea(id) {
+            if (!confirm('¿Eliminar?')) return;
+            const { error } = await supabase.from('areas').delete().eq('id', id);
+            if (error) return mostrarMsg(`Error: ${error.message}`, 'error');
+            mostrarMsg('✓ Eliminada');
+            cargarAreas();
+        }
+
+        // EQUIPOS
+        async function cargarEquipos() {
+            const { data } = await supabase.from('equipos').select('*').order('created_at', { ascending: false });
+            const html = !data?.length ? '<p style="color: #999;">No hay equipos</p>' :
+                data.map(eq => `
+                    <div class="item-card">
+                        <div class="item-header">
+                            <div class="item-title">${eq.nombre}</div>
+                            <div class="item-actions">
+                                <button class="btn btn-danger" onclick="eliminarEquipo(${eq.id})">Eliminar</button>
+                            </div>
+                        </div>
+                        <p style="font-size: 0.9rem; color: #666;">Código: ${eq.codigo} | Tipo: ${eq.tipo} | Estado: ${eq.estado}</p>
+                    </div>
+                `).join('');
+            document.getElementById('listaEquipos').innerHTML = html;
+        }
+
+        async function guardarEquipo(e) {
+            e.preventDefault();
+            const { error } = await supabase.from('equipos').insert([{
+                nombre: document.getElementById('nomEquipo').value,
+                codigo: document.getElementById('codEquipo').value,
+                tipo: document.getElementById('tipoEquipo').value,
+                estado: 'activo',
+                activo: true,
+                proyecto_id: document.getElementById('proyEquipo').value || null
+            }]);
+            if (error) return mostrarMsg(`Error: ${error.message}`, 'error');
+            mostrarMsg('✓ Equipo guardado');
+            document.getElementById('formEquipo').reset();
+            cargarEquipos();
+        }
+
+        async function eliminarEquipo(id) {
+            if (!confirm('¿Eliminar?')) return;
+            const { error } = await supabase.from('equipos').delete().eq('id', id);
+            if (error) return mostrarMsg(`Error: ${error.message}`, 'error');
+            mostrarMsg('✓ Eliminado');
+            cargarEquipos();
+        }
+
+        // Cargar selects
+        async function cargarSelectProyectos() {
+            const { data } = await supabase.from('proyectos').select('id, nombre');
+            const sel = document.getElementById('proyEquipo');
+            sel.innerHTML = '<option value="">-- Ninguno --</option>' + 
+                (data?.map(p => `<option value="${p.id}">${p.nombre}</option>`).join('') || '');
+        }
+
+        async function cargarSelectAreas() {
+            const { data } = await supabase.from('areas').select('id, nombre');
+            const sel = document.getElementById('areaEquipo');
+            sel.innerHTML = '<option value="">-- Ninguna --</option>' + 
+                (data?.map(a => `<option value="${a.id}">${a.nombre}</option>`).join('') || '');
+        }
+
+        // Iniciar
+        document.addEventListener('DOMContentLoaded', () => {
+            cargarProyectos();
+            cargarSelectProyectos();
+            cargarSelectAreas();
+        });
+    </script>
+</body>
+</html>
