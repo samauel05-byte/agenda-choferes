@@ -841,21 +841,6 @@
                     <textarea id="notas" placeholder="Descripción del proyecto, ubicación, requisitos especiales..." required></textarea>
                 </div>
 
-                <div class="form-group" style="background: #F0FDF4; padding: 1rem; border-radius: 4px; border-left: 4px solid #10B981;">
-                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-weight: 500; margin-bottom: 0.5rem;">
-                        <input type="checkbox" id="terminoLabor" style="width: 18px; height: 18px; cursor: pointer;">
-                        ✅ Terminó su labor
-                    </label>
-                    <p style="font-size: 0.85rem; color: #6B7280; margin: 0;">Marca si la labor ya fue completada y quieres agregar un reporte</p>
-                </div>
-
-                <div id="reporteDiv" style="display: none;">
-                    <div class="form-group">
-                        <label for="reporteAgendacion">📋 Reporte de Labor Realizada</label>
-                        <textarea id="reporteAgendacion" placeholder="¿Qué se realizó? ¿Algún problema, hallazgo o novedad?" style="min-height: 100px;"></textarea>
-                    </div>
-                </div>
-
                 <button type="submit">+ Programar Asignación</button>
             </form>
         </div>
@@ -1184,12 +1169,7 @@
 
         const citaForm = document.getElementById('citaForm');
         const alertBox = document.getElementById('alert');
-
-        // Mostrar/ocultar reporte cuando se marca "Terminó su labor"
-        document.getElementById('terminoLabor').addEventListener('change', (e) => {
-            document.getElementById('reporteDiv').style.display = e.target.checked ? 'block' : 'none';
-        });
-
+        
         // Código maestro (puedes cambiar esto)
         const CODIGO_MAESTRO = '2024';
         let modoAdminActivo = false;
@@ -1793,15 +1773,6 @@
 
             const pendienteAprobacion = conflictos.length > 0 && esUrgente;
 
-            // Verificar si marcó "Terminó su labor"
-            const terminoLabor = document.getElementById('terminoLabor').checked;
-            const reporteLabor = document.getElementById('reporteAgendacion').value.trim();
-
-            if (terminoLabor && !reporteLabor) {
-                mostrarAlerta('⚠️ Si marcas "Terminó su labor", debes escribir un reporte', 'error');
-                return;
-            }
-
             const cita = {
                 nombre: nombre,
                 proyecto: proyecto,
@@ -1810,12 +1781,10 @@
                 duracion: duracion,
                 notas: notas,
                 fecha_agendado: new Date().toLocaleDateString('es-DO'),
-                estado: terminoLabor ? 'Terminada' : 'Activa',
+                estado: 'Activa',
                 costo: calcularCosto(equipo, duracion),
                 urgente: esUrgente,
-                urgente_pendiente_aprobacion: pendienteAprobacion,
-                reporte_final: terminoLabor ? reporteLabor : null,
-                estado_recepcion: terminoLabor ? 'terminada' : 'pendiente'
+                urgente_pendiente_aprobacion: pendienteAprobacion
             };
 
             const { error } = await sb.from('reservas').insert(cita);
