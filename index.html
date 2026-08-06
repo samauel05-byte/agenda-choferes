@@ -1299,17 +1299,10 @@
                 return;
             }
 
-            try {
-                const { error } = await sb.from('reservas').update({ estado_labor: nuevoEstado }).eq('id', id);
-                if (error && error.code === 'PGRST204') {
-                    // Campo no existe, intentar con estado_recepcion
-                    await sb.from('reservas').update({ estado_recepcion: nuevoEstado }).eq('id', id);
-                } else if (error) {
-                    throw error;
-                }
-            } catch (error) {
+            const { error } = await sb.from('reservas').update({ estado_recepcion: nuevoEstado }).eq('id', id);
+            if (error) {
                 console.error('Error actualizando estado de labor:', error);
-                mostrarAlerta('❌ No se pudo actualizar el estado de labor', 'error');
+                mostrarAlerta('❌ No se pudo actualizar el estado de labor: ' + error.message, 'error');
                 return;
             }
 
