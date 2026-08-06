@@ -1299,8 +1299,15 @@
                 return;
             }
 
-            const { error } = await sb.from('reservas').update({ estado_labor: nuevoEstado }).eq('id', id);
-            if (error) {
+            try {
+                const { error } = await sb.from('reservas').update({ estado_labor: nuevoEstado }).eq('id', id);
+                if (error && error.code === 'PGRST204') {
+                    // Campo no existe, intentar con estado_recepcion
+                    await sb.from('reservas').update({ estado_recepcion: nuevoEstado }).eq('id', id);
+                } else if (error) {
+                    throw error;
+                }
+            } catch (error) {
                 console.error('Error actualizando estado de labor:', error);
                 mostrarAlerta('❌ No se pudo actualizar el estado de labor', 'error');
                 return;
@@ -1670,9 +1677,9 @@
                     const citaFin = calcularFinJornada(citaInicio, cita.duracion);
 
                     if (ahora >= citaInicio && ahora < citaFin) {
-                        // Determinar estado basado en estado_labor
-                        const estadoLabor = cita.estado_labor || 'pendiente';
-                        if (estadoLabor === 'pendiente') {
+                        // Determinar estado basado en estado_labor o estado_recepcion
+                        const estadoLabor = cita.estado_labor || cita.estado_recepcion || 'pendiente';
+                        if (estadoLabor === 'pendiente' || estadoLabor === 'no_recibido') {
                             estadoActual = 'Pendiente de llegada';
                         } else if (estadoLabor === 'terminada') {
                             estadoActual = 'Labor terminada';
@@ -1753,12 +1760,14 @@
                                             })()}
                                             ${cita.notas ? `<br><span style="display: block; margin-top: 0.4rem; font-size: 0.85rem; color: #374151; background: #F3F4F6; padding: 0.4rem 0.6rem; border-radius: 4px; white-space: pre-wrap;">📝 ${escapeHtml(cita.notas)}</span>` : ''}
                                             ${(() => {
-                                                const estadoLabor = cita.estado_labor || 'pendiente';
+                                                const estadoLabor = cita.estado_labor || cita.estado_recepcion || 'pendiente';
                                                 const info = {
                                                     pendiente: { texto: '⏳ Pendiente de llegada a obra', color: '#92400E', fondo: '#FEF3C7' },
                                                     llegada: { texto: '🚜 Llegó a la obra - Labor iniciada', color: '#065F46', fondo: '#D1FAE5' },
                                                     pausada: { texto: '⏸️ Labor pausada', color: '#7C2D12', fondo: '#FED7AA' },
-                                                    terminada: { texto: '✅ Labor terminada', color: '#065F46', fondo: '#DCFCE7' }
+                                                    terminada: { texto: '✅ Labor terminada', color: '#065F46', fondo: '#DCFCE7' },
+                                                    recibido: { texto: '🚜 Llegó a la obra - Labor iniciada', color: '#065F46', fondo: '#D1FAE5' },
+                                                    no_recibido: { texto: '⏳ Pendiente de llegada a obra', color: '#92400E', fondo: '#FEF3C7' }
                                                 }[estadoLabor];
                                                 return `
                                                     <div style="margin-top: 0.5rem;">
