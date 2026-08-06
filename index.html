@@ -1285,9 +1285,9 @@
             return citasCache;
         }
 
-        // Marca si el equipo fue recibido o no. Solo la persona que aparece como
-        // solicitante en esa reserva puede confirmarlo (se verifica escribiendo el nombre).
-        async function marcarRecepcion(id, valor) {
+        // Cambiar estado de labor del equipo. Solo la persona que aparece como
+        // solicitante en esa reserva puede cambiar el estado (se verifica escribiendo el nombre).
+        async function cambiarEstadoLabor(id, nuevoEstado) {
             const cita = citasCache.find(c => c.id === id);
             if (!cita) return;
 
@@ -1299,19 +1299,21 @@
                 return;
             }
 
-            const { error } = await sb.from('reservas').update({ estado_recepcion: valor }).eq('id', id);
+            const { error } = await sb.from('reservas').update({ estado_labor: nuevoEstado }).eq('id', id);
             if (error) {
-                console.error('Error actualizando recepción:', error);
-                mostrarAlerta('❌ No se pudo actualizar el estado de recepción', 'error');
+                console.error('Error actualizando estado de labor:', error);
+                mostrarAlerta('❌ No se pudo actualizar el estado de labor', 'error');
                 return;
             }
 
             await recargarCitas();
             actualizarDashboard();
-            mostrarAlerta(
-                valor === 'recibido' ? '✅ Recepción confirmada' : '❌ Marcado como equipo no recibido',
-                'success'
-            );
+            const mensajes = {
+                llegada: '🚜 Equipo llegó a la obra - Labor iniciada',
+                pausada: '⏸️ Labor pausada',
+                terminada: '✅ Labor terminada'
+            };
+            mostrarAlerta(mensajes[nuevoEstado] || 'Estado actualizado', 'success');
         }
 
         // Arma el resumen de la asignación y abre WhatsApp con el mensaje ya
@@ -1668,10 +1670,17 @@
                     const citaFin = calcularFinJornada(citaInicio, cita.duracion);
 
                     if (ahora >= citaInicio && ahora < citaFin) {
-                        // Si a esta cita la marcaron "No Recepción", el equipo nunca llegó
-                        // a la obra, así que no está realmente "En Uso" aunque esté dentro
-                        // de su horario programado.
-                        estadoActual = (cita.estado_recepcion === 'no_recibido') ? 'No Llegó' : 'En Uso';
+                        // Determinar estado basado en estado_labor
+                        const estadoLabor = cita.estado_labor || 'pendiente';
+                        if (estadoLabor === 'pendiente') {
+                            estadoActual = 'Pendiente de llegada';
+                        } else if (estadoLabor === 'terminada') {
+                            estadoActual = 'Labor terminada';
+                        } else if (estadoLabor === 'pausada') {
+                            estadoActual = 'Pausada';
+                        } else {
+                            estadoActual = 'En Uso';
+                        }
                         const minutosRestantes = Math.ceil((citaFin - ahora) / (1000 * 60));
                         const horas = Math.floor(minutosRestantes / 60);
                         const minutos = minutosRestantes % 60;
@@ -1695,10 +1704,13 @@
                 if (fueraServicio) {
                     badgeClass = 'status-fuera';
                     emoji = '🔧';
-                } else if (estadoActual === 'No Llegó') {
-                    badgeClass = 'status-no-llego';
-                    emoji = '❌';
-                } else if (estadoActual === 'En Uso') {
+                } else if (estadoActual === 'Pausada') {
+                    badgeClass = 'status-pausada';
+                    emoji = '⏸️';
+                } else if (estadoActual === 'Labor terminada') {
+                    badgeClass = 'status-terminada';
+                    emoji = '✅';
+                } else if (estadoActual === 'En Uso' || estadoActual === 'Pendiente de llegada') {
                     badgeClass = 'status-en-uso';
                     emoji = '🟠';
                 } else {
@@ -1741,18 +1753,20 @@
                                             })()}
                                             ${cita.notas ? `<br><span style="display: block; margin-top: 0.4rem; font-size: 0.85rem; color: #374151; background: #F3F4F6; padding: 0.4rem 0.6rem; border-radius: 4px; white-space: pre-wrap;">📝 ${escapeHtml(cita.notas)}</span>` : ''}
                                             ${(() => {
-                                                const estadoRecepcion = cita.estado_recepcion || 'pendiente';
+                                                const estadoLabor = cita.estado_labor || 'pendiente';
                                                 const info = {
-                                                    pendiente: { texto: '⏳ Pendiente de confirmar recepción', color: '#92400E', fondo: '#FEF3C7' },
-                                                    recibido: { texto: '✅ Equipo recibido', color: '#065F46', fondo: '#D1FAE5' },
-                                                    no_recibido: { texto: '❌ Equipo no ha llegado', color: '#991B1B', fondo: '#FEE2E2' }
-                                                }[estadoRecepcion];
+                                                    pendiente: { texto: '⏳ Pendiente de llegada a obra', color: '#92400E', fondo: '#FEF3C7' },
+                                                    llegada: { texto: '🚜 Llegó a la obra - Labor iniciada', color: '#065F46', fondo: '#D1FAE5' },
+                                                    pausada: { texto: '⏸️ Labor pausada', color: '#7C2D12', fondo: '#FED7AA' },
+                                                    terminada: { texto: '✅ Labor terminada', color: '#065F46', fondo: '#DCFCE7' }
+                                                }[estadoLabor];
                                                 return `
                                                     <div style="margin-top: 0.5rem;">
                                                         <span style="display: inline-block; font-size: 0.8rem; font-weight: 600; padding: 0.25rem 0.6rem; border-radius: 4px; color: ${info.color}; background: ${info.fondo};">${info.texto}</span>
-                                                        <div style="margin-top: 0.4rem; display: flex; gap: 0.4rem;">
-                                                            <button onclick="marcarRecepcion('${cita.id}', 'recibido')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #10B981; color: white; border: none; border-radius: 4px; cursor: pointer;">✅ Recepción</button>
-                                                            <button onclick="marcarRecepcion('${cita.id}', 'no_recibido')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #EF4444; color: white; border: none; border-radius: 4px; cursor: pointer;">❌ No Recepción</button>
+                                                        <div style="margin-top: 0.4rem; display: flex; gap: 0.4rem; flex-wrap: wrap;">
+                                                            ${estadoLabor === 'pendiente' ? `<button onclick="cambiarEstadoLabor('${cita.id}', 'llegada')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #10B981; color: white; border: none; border-radius: 4px; cursor: pointer;">🚜 Llega a la obra - Iniciar labor</button>` : ''}
+                                                            ${(estadoLabor === 'llegada' || estadoLabor === 'pausada') ? `<button onclick="cambiarEstadoLabor('${cita.id}', '${estadoLabor === 'llegada' ? 'pausada' : 'llegada'}')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: ${estadoLabor === 'llegada' ? '#F59E0B' : '#10B981'}; color: white; border: none; border-radius: 4px; cursor: pointer;">${estadoLabor === 'llegada' ? '⏸️ Pausar' : '▶️ Reanudar'}</button>` : ''}
+                                                            ${(estadoLabor === 'llegada' || estadoLabor === 'pausada') ? `<button onclick="cambiarEstadoLabor('${cita.id}', 'terminada')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #059669; color: white; border: none; border-radius: 4px; cursor: pointer;">✅ Terminación de labor</button>` : ''}
                                                         </div>
                                                     </div>
                                                 `;
