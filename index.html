@@ -1328,16 +1328,19 @@
 
             if (valor === 'llegada') {
                 updateData.hora_llegada_real = ahora.toISOString();
+            } else if (valor === 'en_labor') {
+                updateData.hora_inicio_labor = ahora.toISOString();
             } else if (valor === 'terminada') {
                 updateData.hora_fin_real = ahora.toISOString();
 
-                // Calcular tiempo extra y costo extra
-                if (cita.hora_llegada_real) {
-                    const horaLlegada = new Date(cita.hora_llegada_real);
-                    const tiempoUsadoMs = ahora - horaLlegada;
+                // Calcular tiempo extra y costo extra (desde hora_inicio_labor, no hora_llegada_real)
+                if (cita.hora_inicio_labor) {
+                    const horaInicio = new Date(cita.hora_inicio_labor);
+                    const tiempoUsadoMs = ahora - horaInicio;
                     const tiempoUsadoHoras = tiempoUsadoMs / (1000 * 60 * 60);
                     const tiempoSolicitadoHoras = cita.duracion || 0;
                     const tiempoExtraHoras = Math.max(0, tiempoUsadoHoras - tiempoSolicitadoHoras);
+                    const minutosExtra = Math.round(tiempoExtraHoras * 60);
 
                     // Calcular costo extra (tarifa por hora extra = costo original / horas solicitadas)
                     const costoOriginal = cita.costo || 0;
@@ -1346,11 +1349,16 @@
                     const costoTotal = costoOriginal + costoExtra;
 
                     updateData.tiempo_extra_horas = tiempoExtraHoras;
+                    updateData.minutos_extra = minutosExtra;
                     updateData.costo_extra = costoExtra;
                     updateData.costo_total = costoTotal;
+                    updateData.completada = true;
 
-                    // Buscar y mover agendas conflictivas
+                    // Buscar y mover agendas conflictivas (basado en hora_fin_real)
                     await moverAgendasConflictivas(cita.equipo, ahora);
+                } else {
+                    // Si no hay hora_inicio_labor, no se puede calcular
+                    updateData.completada = true;
                 }
             }
 
@@ -1372,9 +1380,14 @@
             } else if (valor === 'pausada') {
                 mensaje += 'Labor pausada';
             } else if (valor === 'terminada') {
-                const extra = citasCache.find(c => c.id === id)?.tiempo_extra_horas || 0;
-                const costoEx = citasCache.find(c => c.id === id)?.costo_extra || 0;
-                mensaje += `Labor finalizada. Tiempo extra: ${extra.toFixed(2)}h | Costo extra: $${costoEx.toFixed(2)}`;
+                const citaFinal = citasCache.find(c => c.id === id);
+                const minutosExtra = citaFinal?.minutos_extra || 0;
+                const costoEx = citaFinal?.costo_extra || 0;
+                if (minutosExtra > 0) {
+                    mensaje += `Labor finalizada. ⚠️ Tiempo extra: ${Math.round(minutosExtra)} min | Costo extra: $${costoEx.toFixed(2)}`;
+                } else {
+                    mensaje += `Labor finalizada en el tiempo programado.`;
+                }
             }
 
             mostrarAlerta(mensaje, 'success');
