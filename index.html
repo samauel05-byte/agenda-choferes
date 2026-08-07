@@ -1800,10 +1800,11 @@
                         const horas = Math.floor(minutosRestantes / 60);
                         const minutos = minutosRestantes % 60;
 
+                        // Solo mostrar tiempoRestante cuando está "En Uso", no cuando está "Disponible"
                         if (horas > 0) {
-                            tiempoRestante = `Disponible en ${horas}h ${minutos}m`;
+                            tiempoRestante = `Tiempo restante: ${horas}h ${minutos}m`;
                         } else {
-                            tiempoRestante = `Disponible en ${minutos}m`;
+                            tiempoRestante = `Tiempo restante: ${minutos}m`;
                         }
                     }
                 });
