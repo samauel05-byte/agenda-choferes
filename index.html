@@ -1323,10 +1323,35 @@
                 return;
             }
 
-            // Si es "llegada", guardar la hora real de llegada
+            const ahora = new Date();
             const updateData = { estado_recepcion: valor };
+
             if (valor === 'llegada') {
-                updateData.hora_llegada_real = new Date().toISOString();
+                updateData.hora_llegada_real = ahora.toISOString();
+            } else if (valor === 'terminada') {
+                updateData.hora_fin_real = ahora.toISOString();
+
+                // Calcular tiempo extra y costo extra
+                if (cita.hora_llegada_real) {
+                    const horaLlegada = new Date(cita.hora_llegada_real);
+                    const tiempoUsadoMs = ahora - horaLlegada;
+                    const tiempoUsadoHoras = tiempoUsadoMs / (1000 * 60 * 60);
+                    const tiempoSolicitadoHoras = cita.duracion || 0;
+                    const tiempoExtraHoras = Math.max(0, tiempoUsadoHoras - tiempoSolicitadoHoras);
+
+                    // Calcular costo extra (tarifa por hora extra = costo original / horas solicitadas)
+                    const costoOriginal = cita.costo || 0;
+                    const tarifaPorHora = tiempoSolicitadoHoras > 0 ? costoOriginal / tiempoSolicitadoHoras : 0;
+                    const costoExtra = tiempoExtraHoras * tarifaPorHora;
+                    const costoTotal = costoOriginal + costoExtra;
+
+                    updateData.tiempo_extra_horas = tiempoExtraHoras;
+                    updateData.costo_extra = costoExtra;
+                    updateData.costo_total = costoTotal;
+
+                    // Buscar y mover agendas conflictivas
+                    await moverAgendasConflictivas(cita.equipo, ahora);
+                }
             }
 
             const { error } = await sb.from('reservas').update(updateData).eq('id', id);
@@ -1341,16 +1366,38 @@
 
             let mensaje = '✅ ';
             if (valor === 'llegada') {
-                mensaje += 'Equipo llegó. Hora de inicio registrada: ' + new Date().toLocaleTimeString('es-DO');
+                mensaje += 'Equipo llegó. Hora de inicio registrada: ' + ahora.toLocaleTimeString('es-DO');
             } else if (valor === 'en_labor') {
                 mensaje += 'Labor iniciada';
             } else if (valor === 'pausada') {
                 mensaje += 'Labor pausada';
             } else if (valor === 'terminada') {
-                mensaje += 'Labor finalizada';
+                const extra = citasCache.find(c => c.id === id)?.tiempo_extra_horas || 0;
+                const costoEx = citasCache.find(c => c.id === id)?.costo_extra || 0;
+                mensaje += `Labor finalizada. Tiempo extra: ${extra.toFixed(2)}h | Costo extra: $${costoEx.toFixed(2)}`;
             }
 
             mostrarAlerta(mensaje, 'success');
+        }
+
+        // Mover agendas conflictivas automáticamente
+        async function moverAgendasConflictivas(equipo, nuevaFechaFin) {
+            const citas = cargarCitas();
+            const citasDelEquipo = citas.filter(c => c.equipo === equipo && c.estado_recepcion === 'pendiente');
+
+            for (let citaConflictiva of citasDelEquipo) {
+                const citaInicio = new Date(citaConflictiva.inicio);
+
+                // Si la nueva fin es después del inicio de la siguiente cita, moverla
+                if (nuevaFechaFin > citaInicio) {
+                    const diferencia = nuevaFechaFin - citaInicio;
+                    const nuevoInicio = new Date(citaInicio.getTime() + diferencia);
+
+                    await sb.from('reservas').update({ inicio: nuevoInicio.toISOString() }).eq('id', citaConflictiva.id);
+
+                    mostrarAlerta(`📅 Agenda de "${citaConflictiva.proyecto}" movida a ${nuevoInicio.toLocaleString('es-DO')} (ajuste automático)`, 'info');
+                }
+            }
         }
 
         // Arma el resumen de la asignación y abre WhatsApp con el mensaje ya
@@ -1366,6 +1413,10 @@
                 ? formatearMoneda(cita.costo)
                 : 'No disponible';
 
+            const costoTotalTexto = (cita.costo_total !== undefined && cita.costo_total !== null)
+                ? formatearMoneda(cita.costo_total)
+                : costoTexto;
+
             const lineas = [
                 '*Nueva asignación programada*',
                 '',
@@ -1376,6 +1427,11 @@
                 `Inicio: ${fechaInicio}`,
                 `Duración: ${formatearDuracionCita(cita)}`,
                 `Costo estimado: ${costoTexto}`,
+                ...(cita.tiempo_extra_horas && cita.tiempo_extra_horas > 0 ? [
+                    `⏰ Tiempo extra: ${cita.tiempo_extra_horas.toFixed(2)}h`,
+                    `💰 Costo extra: ${formatearMoneda(cita.costo_extra)}`,
+                    `📊 Costo total: ${costoTotalTexto}`
+                ] : []),
                 `Notas: ${cita.notas}`
             ];
 
