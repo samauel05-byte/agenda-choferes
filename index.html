@@ -866,18 +866,21 @@
         <div class="card" id="cardPersonalizacion" style="display: none;">
             <h2 class="section-title">🎨 Personalización (Logo y Favicon)</h2>
             <p style="margin-bottom: 1.5rem; color: #6B7280;">
-                <strong>Solo administrador:</strong> Cambia el favicon (icono de la pestaña) y personaliza la marca.
+                <strong>Solo administrador:</strong> Sube imágenes o cambia el favicon de la pestaña y el título.
             </p>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
                 <div>
-                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">📍 Cambiar Favicon</label>
-                    <input type="text" id="inputFavicon" placeholder="Emoji o URL" style="width: 100%; padding: 0.7rem; border: 1px solid #D1D5DB; border-radius: 4px; margin-bottom: 0.5rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">📍 Favicon (PNG/ICO/Emoji)</label>
+                    <input type="file" id="fileFavicon" accept="image/*" style="width: 100%; padding: 0.5rem; margin-bottom: 0.5rem;">
+                    <div id="previewFavicon" style="width: 60px; height: 60px; border: 1px solid #D1D5DB; border-radius: 4px; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: center; font-size: 2rem; background: #F3F4F6;"></div>
                     <button type="button" onclick="cambiarFavicon()" style="width: 100%; background: var(--color-primary); color: white; padding: 0.6rem; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">✅ Aplicar Favicon</button>
                 </div>
                 <div>
                     <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">🏷️ Título de Página</label>
                     <input type="text" id="inputTitulo" placeholder="Nuevo título" style="width: 100%; padding: 0.7rem; border: 1px solid #D1D5DB; border-radius: 4px; margin-bottom: 0.5rem;">
-                    <button type="button" onclick="cambiarTitulo()" style="width: 100%; background: var(--color-primary); color: white; padding: 0.6rem; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">✅ Aplicar Título</button>
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">🖼️ Logo (PNG/JPG)</label>
+                    <input type="file" id="fileLogo" accept="image/*" style="width: 100%; padding: 0.5rem; margin-bottom: 0.5rem;">
+                    <button type="button" onclick="cambiarTitulo()" style="width: 100%; background: var(--color-primary); color: white; padding: 0.6rem; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; margin-top: 0.5rem;">✅ Aplicar Cambios</button>
                 </div>
             </div>
         </div>
@@ -2366,37 +2369,60 @@
                 return;
             }
 
-            const input = document.getElementById('inputFavicon').value.trim();
-            if (!input) {
-                mostrarAlerta('⚠️ Ingresa un emoji o URL', 'error');
+            const fileInput = document.getElementById('fileFavicon');
+            if (!fileInput.files || fileInput.files.length === 0) {
+                mostrarAlerta('⚠️ Selecciona una imagen', 'error');
                 return;
             }
 
-            try {
-                // Si es emoji (un solo carácter)
-                if (input.length <= 2 && /\p{Emoji}/u.test(input)) {
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                try {
                     const faviconLink = document.querySelector("link[rel='icon']");
-                    const encodedEmoji = encodeURIComponent(input);
-                    faviconLink.href = `data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>${encodedEmoji}</text></svg>`;
-                    localStorage.setItem('faviconCustom', input);
-                    mostrarAlerta(`✅ Favicon cambiado a: ${input}`, 'success');
-                } else if (input.startsWith('http')) {
-                    // Si es URL
-                    const faviconLink = document.querySelector("link[rel='icon']");
-                    faviconLink.href = input;
-                    localStorage.setItem('faviconCustom', input);
-                    mostrarAlerta('✅ Favicon cambiado desde URL', 'success');
-                } else {
-                    mostrarAlerta('⚠️ Ingresa un emoji válido o URL completa', 'error');
+                    const base64Data = e.target.result;
+                    faviconLink.href = base64Data;
+                    localStorage.setItem('faviconCustom', base64Data);
+                    mostrarAlerta('✅ Favicon actualizado correctamente', 'success');
+                    fileInput.value = '';
+                    document.getElementById('previewFavicon').innerHTML = '';
+                    const img = document.createElement('img');
+                    img.src = base64Data;
+                    img.style.width = '100%';
+                    img.style.height = '100%';
+                    img.style.objectFit = 'cover';
+                    img.style.borderRadius = '4px';
+                    document.getElementById('previewFavicon').appendChild(img);
+                } catch (err) {
+                    console.error('Error:', err);
+                    mostrarAlerta('❌ Error al procesar imagen', 'error');
                 }
-                document.getElementById('inputFavicon').value = '';
-            } catch (e) {
-                console.error('Error cambiando favicon:', e);
-                mostrarAlerta('❌ Error al cambiar favicon', 'error');
-            }
+            };
+
+            reader.readAsDataURL(file);
         }
 
-        // Cambiar Título de Página (solo admin)
+        // Preview de imagen al seleccionar
+        document.addEventListener('change', function(e) {
+            if (e.target.id === 'fileFavicon' && e.target.files && e.target.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    const preview = document.getElementById('previewFavicon');
+                    preview.innerHTML = '';
+                    const img = document.createElement('img');
+                    img.src = evt.target.result;
+                    img.style.width = '100%';
+                    img.style.height = '100%';
+                    img.style.objectFit = 'cover';
+                    img.style.borderRadius = '4px';
+                    preview.appendChild(img);
+                };
+                reader.readAsDataURL(e.target.files[0]);
+            }
+        });
+
+        // Cambiar Título y Logo (solo admin)
         function cambiarTitulo() {
             if (!modoAdminActivo) {
                 mostrarAlerta('🔒 Necesitas estar en modo administrador', 'error');
@@ -2404,30 +2430,54 @@
             }
 
             const nuevoTitulo = document.getElementById('inputTitulo').value.trim();
-            if (!nuevoTitulo) {
-                mostrarAlerta('⚠️ Ingresa un título', 'error');
-                return;
+            const fileLogoInput = document.getElementById('fileLogo');
+
+            let cambiosHechos = false;
+
+            // Cambiar título
+            if (nuevoTitulo) {
+                document.title = nuevoTitulo;
+                localStorage.setItem('tituloCustom', nuevoTitulo);
+                document.getElementById('inputTitulo').value = '';
+                cambiosHechos = true;
             }
 
-            document.title = nuevoTitulo;
-            localStorage.setItem('tituloCustom', nuevoTitulo);
-            mostrarAlerta(`✅ Título cambiado a: "${nuevoTitulo}"`, 'success');
-            document.getElementById('inputTitulo').value = '';
+            // Cambiar logo
+            if (fileLogoInput.files && fileLogoInput.files.length > 0) {
+                const file = fileLogoInput.files[0];
+                const reader = new FileReader();
+
+                reader.onload = function(e) {
+                    try {
+                        const base64Data = e.target.result;
+                        localStorage.setItem('logoCustom', base64Data);
+                        fileLogoInput.value = '';
+                        cambiosHechos = true;
+                        mostrarAlerta('✅ Logo y cambios aplicados correctamente', 'success');
+                        location.reload(); // Recargar para aplicar cambios
+                    } catch (err) {
+                        console.error('Error:', err);
+                        mostrarAlerta('❌ Error al procesar logo', 'error');
+                    }
+                };
+
+                reader.readAsDataURL(file);
+            } else if (cambiosHechos) {
+                mostrarAlerta(`✅ Título cambiado a: "${nuevoTitulo}"`, 'success');
+            } else {
+                mostrarAlerta('⚠️ Ingresa un título o sube un logo', 'error');
+            }
         }
 
         // Cargar personalizaciones guardadas al iniciar
         function cargarPersonalizaciones() {
             const faviconGuardado = localStorage.getItem('faviconCustom');
             const tituloGuardado = localStorage.getItem('tituloCustom');
+            const logoGuardado = localStorage.getItem('logoCustom');
 
             if (faviconGuardado) {
                 try {
-                    if (faviconGuardado.startsWith('http')) {
-                        document.querySelector("link[rel='icon']").href = faviconGuardado;
-                    } else {
-                        const encodedEmoji = encodeURIComponent(faviconGuardado);
-                        document.querySelector("link[rel='icon']").href = `data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>${encodedEmoji}</text></svg>`;
-                    }
+                    document.querySelector("link[rel='icon']").href = faviconGuardado;
                 } catch (e) {
                     console.error('Error cargando favicon personalizado:', e);
                 }
@@ -2435,6 +2485,22 @@
 
             if (tituloGuardado) {
                 document.title = tituloGuardado;
+            }
+
+            if (logoGuardado) {
+                try {
+                    // Buscar y reemplazar logos en el header si existen
+                    const logoElements = document.querySelectorAll('.logo-svg, [class*="logo"]');
+                    logoElements.forEach(el => {
+                        if (el.tagName === 'IMG' || el.tagName === 'svg') {
+                            el.style.backgroundImage = `url('${logoGuardado}')`;
+                        } else {
+                            el.innerHTML = `<img src="${logoGuardado}" style="width: 100%; height: 100%; object-fit: cover;">`;
+                        }
+                    });
+                } catch (e) {
+                    console.error('Error cargando logo personalizado:', e);
+                }
             }
         }
 
