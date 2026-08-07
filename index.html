@@ -1770,6 +1770,10 @@
                 const citasEquipo = citas
                     .filter(c => c.equipo === equipo)
                     .filter(c => {
+                        // Ocultar agendas completadas/terminadas
+                        if (c.completada || c.estado_recepcion === 'terminada') {
+                            return false;
+                        }
                         // Mantener solo las citas que aún no han terminado (en uso o futuras).
                         // Las ya finalizadas se ocultan de la tarjeta pero permanecen en la base de datos.
                         const fin = calcularFinJornada(new Date(c.inicio), c.duracion);
