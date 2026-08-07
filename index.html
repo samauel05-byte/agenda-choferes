@@ -774,8 +774,10 @@
 
         <div class="card card-equipos" id="cardEquipos">
             <h2 class="section-title">🗓️ Estado Logístico de Equipos</h2>
-            <p style="margin-bottom: 1.5rem; color: #6B7280;">
-                <strong>Estado actual de los equipos:</strong> 🟢 Disponible | 🟠 En Uso | ❌ No Llegó (equipo no recepcionado) — los equipos 🔧 Fuera de Servicio se ocultan aquí y del formulario de reserva; solo el administrador los ve para poder reactivarlos.
+            <p style="margin-bottom: 1.5rem; color: #6B7280; font-size: 0.95rem; line-height: 1.6;">
+                <strong>Estado actual de los equipos:</strong><br>
+                🟢 Disponible | 🟡 Pendiente de Llegada (ya empezó su horario pero nadie marcó llegada) | 🟠 En Uso | ❌ No Llegó (equipo no recepcionado)<br>
+                <span style="font-size: 0.9rem; color: #9CA3AF;">Los equipos 🔧 Fuera de Servicio se ocultan aquí y del formulario de reserva; solo el administrador los ve para poder reactivarlos.</span>
             </p>
             <div id="dashboardEquipos" class="calendar-grid">
                 <!-- Se llena automáticamente con JavaScript -->
