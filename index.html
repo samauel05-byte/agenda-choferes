@@ -784,8 +784,8 @@
             </div>
         </div>
 
-        <!-- SECCIÓN DE REPORTERÍA -->
-        <div class="card" id="cardReporteria" style="margin-top: 2rem;">
+        <!-- SECCIÓN DE REPORTERÍA (SOLO ADMIN) -->
+        <div class="card" id="cardReporteria" style="margin-top: 2rem; display: none;">
             <h2 class="section-title">📊 Reportería de Operaciones</h2>
 
             <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; align-items: center;">
@@ -852,7 +852,7 @@
             </div>
         </div>
 
-        <div class="card">
+        <div class="card" id="cardVaciarBaseDatos" style="display: none;">
             <h2 class="section-title">🗑️ Vaciar Base de Datos</h2>
             <p style="margin-bottom: 1rem; color: #6B7280;">
                 Reservas guardadas actualmente: <strong id="contadorReservas" style="color: var(--color-primary);">0</strong>
@@ -2123,6 +2123,8 @@
                 indicador.style.borderColor = '#86EFAC';
                 textoIndicador.textContent = '✅ MODO ADMINISTRADOR ACTIVO - Puedes editar, eliminar asignaciones y marcar equipos fuera de servicio';
                 indicador.style.display = 'block';
+                document.getElementById('cardReporteria').style.display = 'block';
+                document.getElementById('cardVaciarBaseDatos').style.display = 'block';
                 mostrarAlerta('✅ Modo administrador activado', 'success');
                 actualizarDashboard();
                 actualizarDatalistEquipos();
