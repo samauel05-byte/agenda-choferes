@@ -791,11 +791,11 @@
             <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; align-items: center;">
                 <div>
                     <label style="font-size: 0.85rem; color: #6B7280; display: block; margin-bottom: 0.3rem;">📅 Selecciona un Día:</label>
-                    <input type="date" id="filtroFecha" placeholder="Fecha" style="padding: 0.5rem; border: 1px solid #D1D5DB; border-radius: 4px; font-size: 0.9rem;">
+                    <input type="date" id="filtroFecha" placeholder="Fecha" onkeypress="if(event.key==='Enter') cargarReporteria();" style="padding: 0.5rem; border: 1px solid #D1D5DB; border-radius: 4px; font-size: 0.9rem;">
                 </div>
                 <div>
                     <label style="font-size: 0.85rem; color: #6B7280; display: block; margin-bottom: 0.3rem;">⚙️ Filtro (opcional):</label>
-                    <select id="filtroEquipo" style="padding: 0.5rem; border: 1px solid #D1D5DB; border-radius: 4px; font-size: 0.9rem;">
+                    <select id="filtroEquipo" onkeypress="if(event.key==='Enter') cargarReporteria();" style="padding: 0.5rem; border: 1px solid #D1D5DB; border-radius: 4px; font-size: 0.9rem;">
                         <option value="">Todos los equipos</option>
                     </select>
                 </div>
@@ -844,7 +844,7 @@
             </p>
             <div class="form-group" style="max-width: 300px;">
                 <label for="codigoMaestro">Código Maestro *</label>
-                <input type="password" id="codigoMaestro" placeholder="Ingresa el código">
+                <input type="password" id="codigoMaestro" placeholder="Ingresa el código" onkeypress="if(event.key==='Enter') activarModoAdmin();">
             </div>
             <button type="button" onclick="activarModoAdmin()">🔓 Desbloquear Administrador</button>
             <div id="modoAdminIndicador" style="margin-top: 1rem; padding: 0.8rem; border-radius: 6px; display: none; background: #FEE2E2; border: 1px solid #FCA5A5;">
