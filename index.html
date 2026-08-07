@@ -982,6 +982,31 @@
             return formatearDuracionHMS(d.h, d.m, d.s);
         }
 
+        // Calcular horas REALES trabajadas (desde hora_llegada_real, no desde inicio programado)
+        function calcularHorasReales(cita) {
+            if (!cita.hora_llegada_real) {
+                return 'Pendiente (no ha llegado)';
+            }
+            if (cita.estado_recepcion === 'pendiente') {
+                return 'Pendiente (no ha llegado)';
+            }
+
+            const horaLlegada = new Date(cita.hora_llegada_real);
+            const ahora = new Date();
+
+            let horaFin = ahora;
+            if (cita.estado_recepcion === 'terminada') {
+                const duracionMs = cita.duracion * 60 * 60 * 1000;
+                horaFin = new Date(horaLlegada.getTime() + duracionMs);
+            }
+
+            const diferenciaMs = horaFin - horaLlegada;
+            const diferenciahoras = diferenciaMs / (1000 * 60 * 60);
+
+            const d = desglosarHoras(diferenciahoras);
+            return formatearDuracionHMS(d.h, d.m, d.s);
+        }
+
         // Refresca el costo estimado (solo lectura) en el formulario principal
         function actualizarCostoEstimado() {
             const equipo = document.getElementById('equipo').value.trim();
@@ -1298,7 +1323,13 @@
                 return;
             }
 
-            const { error } = await sb.from('reservas').update({ estado_recepcion: valor }).eq('id', id);
+            // Si es "llegada", guardar la hora real de llegada
+            const updateData = { estado_recepcion: valor };
+            if (valor === 'llegada') {
+                updateData.hora_llegada_real = new Date().toISOString();
+            }
+
+            const { error } = await sb.from('reservas').update(updateData).eq('id', id);
             if (error) {
                 console.error('Error actualizando recepción:', error);
                 mostrarAlerta('❌ No se pudo actualizar el estado de recepción', 'error');
@@ -1307,10 +1338,19 @@
 
             await recargarCitas();
             actualizarDashboard();
-            mostrarAlerta(
-                valor === 'recibido' ? '✅ Recepción confirmada' : '❌ Marcado como equipo no recibido',
-                'success'
-            );
+
+            let mensaje = '✅ ';
+            if (valor === 'llegada') {
+                mensaje += 'Equipo llegó. Hora de inicio registrada: ' + new Date().toLocaleTimeString('es-DO');
+            } else if (valor === 'en_labor') {
+                mensaje += 'Labor iniciada';
+            } else if (valor === 'pausada') {
+                mensaje += 'Labor pausada';
+            } else if (valor === 'terminada') {
+                mensaje += 'Labor finalizada';
+            }
+
+            mostrarAlerta(mensaje, 'success');
         }
 
         // Arma el resumen de la asignación y abre WhatsApp con el mensaje ya
@@ -1551,11 +1591,21 @@
             return cursor;
         }
 
-        // Verificar conflicto de disponibilidad
+        // Verificar conflicto de disponibilidad + hora de almuerzo (12:00-13:00)
         function verificarConflicto(equipo, inicio, duracion, excludeId = null) {
             const citas = cargarCitas();
             const fechaInicio = new Date(inicio);
             const fechaFin = calcularFinJornada(fechaInicio, duracion);
+
+            // Verificar si interfiere con hora de almuerzo (12:00-13:00)
+            const horaAlmuerzoInicio = new Date(fechaInicio);
+            horaAlmuerzoInicio.setHours(12, 0, 0, 0);
+            const horaAlmuerzoFin = new Date(fechaInicio);
+            horaAlmuerzoFin.setHours(13, 0, 0, 0);
+
+            if (fechaInicio < horaAlmuerzoFin && fechaFin > horaAlmuerzoInicio) {
+                return `⚠️ Esta reserva interfiere con la hora de almuerzo (12:00-13:00). La jornada será pausada automáticamente durante ese período.`;
+            }
 
             for (let cita of citas) {
                 if (excludeId && cita.id === excludeId) continue;
