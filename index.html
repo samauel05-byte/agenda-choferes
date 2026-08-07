@@ -862,6 +862,25 @@
             </p>
             <button type="button" onclick="vaciarBaseDatos()" style="background: var(--color-dark);">⚠️ Respaldar y Vaciar Todo</button>
         </div>
+
+        <div class="card" id="cardPersonalizacion" style="display: none;">
+            <h2 class="section-title">🎨 Personalización (Logo y Favicon)</h2>
+            <p style="margin-bottom: 1.5rem; color: #6B7280;">
+                <strong>Solo administrador:</strong> Cambia el favicon (icono de la pestaña) y personaliza la marca.
+            </p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                <div>
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">📍 Cambiar Favicon</label>
+                    <input type="text" id="inputFavicon" placeholder="Emoji o URL" style="width: 100%; padding: 0.7rem; border: 1px solid #D1D5DB; border-radius: 4px; margin-bottom: 0.5rem;">
+                    <button type="button" onclick="cambiarFavicon()" style="width: 100%; background: var(--color-primary); color: white; padding: 0.6rem; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">✅ Aplicar Favicon</button>
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">🏷️ Título de Página</label>
+                    <input type="text" id="inputTitulo" placeholder="Nuevo título" style="width: 100%; padding: 0.7rem; border: 1px solid #D1D5DB; border-radius: 4px; margin-bottom: 0.5rem;">
+                    <button type="button" onclick="cambiarTitulo()" style="width: 100%; background: var(--color-primary); color: white; padding: 0.6rem; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">✅ Aplicar Título</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Modal de edición (solo administrador) -->
@@ -927,7 +946,7 @@
 
     <footer>
         <p>&copy; 2026 Grupo Dupla | Constructora Dupla • Porto Valencia</p>
-        <p style="font-size: 0.85rem; margin-top: 0.5rem;">Programador de Logística de Equipos Pesados • Version SamKill 0.8</p>
+        <p style="font-size: 0.85rem; margin-top: 0.5rem;">Programador de Logística de Equipos Pesados • Version SamKill 0.9</p>
         <div class="footer-social">
             <a href="https://www.instagram.com/portovalencia/?hl=en" target="_blank" rel="noopener noreferrer" aria-label="Instagram de Porto Valencia" title="Instagram">
                 <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M12 2c-2.72 0-3.06.01-4.12.06-1.06.05-1.79.22-2.43.47-.66.26-1.22.6-1.77 1.16-.56.55-.9 1.11-1.16 1.77-.25.64-.42 1.37-.47 2.43C2.01 8.94 2 9.28 2 12s.01 3.06.06 4.12c.05 1.06.22 1.79.47 2.43.26.66.6 1.22 1.16 1.77.55.56 1.11.9 1.77 1.16.64.25 1.37.42 2.43.47C8.94 21.99 9.28 22 12 22s3.06-.01 4.12-.06c1.06-.05 1.79-.22 2.43-.47.66-.26 1.22-.6 1.77-1.16.56-.55.9-1.11 1.16-1.77.25-.64.42-1.37.47-2.43.05-1.06.06-1.4.06-4.12s-.01-3.06-.06-4.12c-.05-1.06-.22-1.79-.47-2.43-.26-.66-.6-1.22-1.16-1.77-.55-.56-1.11-.9-1.77-1.16-.64-.25-1.37-.42-2.43-.47C15.06 2.01 14.72 2 12 2zm0 1.8c2.67 0 2.99.01 4.04.06.98.04 1.5.21 1.85.34.47.18.8.4 1.15.75.35.35.57.68.75 1.15.13.36.3.88.34 1.85.05 1.05.06 1.37.06 4.04s-.01 2.99-.06 4.04c-.04.98-.21 1.5-.34 1.85-.18.47-.4.8-.75 1.15-.35.35-.68.57-1.15.75-.36.13-.88.3-1.85.34-1.05.05-1.37.06-4.04.06s-2.99-.01-4.04-.06c-.98-.04-1.5-.21-1.85-.34-.47-.18-.8-.4-1.15-.75-.35-.35-.57-.68-.75-1.15-.13-.36-.3-.88-.34-1.85C3.81 14.99 3.8 14.67 3.8 12s.01-2.99.06-4.04c.04-.98.21-1.5.34-1.85.18-.47.4-.8.75-1.15.35-.35.68-.57 1.15-.75.36-.13.88-.3 1.85-.34C9.01 3.81 9.33 3.8 12 3.8zm0 3.05a5.15 5.15 0 1 0 0 10.3 5.15 5.15 0 0 0 0-10.3zm0 8.5a3.35 3.35 0 1 1 0-6.7 3.35 3.35 0 0 1 0 6.7zm5.35-8.7a1.2 1.2 0 1 1-2.4 0 1.2 1.2 0 0 1 2.4 0z"/></svg>
@@ -2128,6 +2147,7 @@
                 indicador.style.display = 'block';
                 document.getElementById('cardReporteria').style.display = 'block';
                 document.getElementById('cardVaciarBaseDatos').style.display = 'block';
+                document.getElementById('cardPersonalizacion').style.display = 'block';
                 mostrarAlerta('✅ Modo administrador activado', 'success');
                 actualizarDashboard();
                 actualizarDatalistEquipos();
@@ -2339,8 +2359,88 @@
             mostrarAlerta('🗑️ Base de datos vaciada. Respaldo descargado.', 'success');
         }
 
+        // Cambiar Favicon (solo admin)
+        function cambiarFavicon() {
+            if (!modoAdminActivo) {
+                mostrarAlerta('🔒 Necesitas estar en modo administrador', 'error');
+                return;
+            }
+
+            const input = document.getElementById('inputFavicon').value.trim();
+            if (!input) {
+                mostrarAlerta('⚠️ Ingresa un emoji o URL', 'error');
+                return;
+            }
+
+            try {
+                // Si es emoji (un solo carácter)
+                if (input.length <= 2 && /\p{Emoji}/u.test(input)) {
+                    const faviconLink = document.querySelector("link[rel='icon']");
+                    const encodedEmoji = encodeURIComponent(input);
+                    faviconLink.href = `data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>${encodedEmoji}</text></svg>`;
+                    localStorage.setItem('faviconCustom', input);
+                    mostrarAlerta(`✅ Favicon cambiado a: ${input}`, 'success');
+                } else if (input.startsWith('http')) {
+                    // Si es URL
+                    const faviconLink = document.querySelector("link[rel='icon']");
+                    faviconLink.href = input;
+                    localStorage.setItem('faviconCustom', input);
+                    mostrarAlerta('✅ Favicon cambiado desde URL', 'success');
+                } else {
+                    mostrarAlerta('⚠️ Ingresa un emoji válido o URL completa', 'error');
+                }
+                document.getElementById('inputFavicon').value = '';
+            } catch (e) {
+                console.error('Error cambiando favicon:', e);
+                mostrarAlerta('❌ Error al cambiar favicon', 'error');
+            }
+        }
+
+        // Cambiar Título de Página (solo admin)
+        function cambiarTitulo() {
+            if (!modoAdminActivo) {
+                mostrarAlerta('🔒 Necesitas estar en modo administrador', 'error');
+                return;
+            }
+
+            const nuevoTitulo = document.getElementById('inputTitulo').value.trim();
+            if (!nuevoTitulo) {
+                mostrarAlerta('⚠️ Ingresa un título', 'error');
+                return;
+            }
+
+            document.title = nuevoTitulo;
+            localStorage.setItem('tituloCustom', nuevoTitulo);
+            mostrarAlerta(`✅ Título cambiado a: "${nuevoTitulo}"`, 'success');
+            document.getElementById('inputTitulo').value = '';
+        }
+
+        // Cargar personalizaciones guardadas al iniciar
+        function cargarPersonalizaciones() {
+            const faviconGuardado = localStorage.getItem('faviconCustom');
+            const tituloGuardado = localStorage.getItem('tituloCustom');
+
+            if (faviconGuardado) {
+                try {
+                    if (faviconGuardado.startsWith('http')) {
+                        document.querySelector("link[rel='icon']").href = faviconGuardado;
+                    } else {
+                        const encodedEmoji = encodeURIComponent(faviconGuardado);
+                        document.querySelector("link[rel='icon']").href = `data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>${encodedEmoji}</text></svg>`;
+                    }
+                } catch (e) {
+                    console.error('Error cargando favicon personalizado:', e);
+                }
+            }
+
+            if (tituloGuardado) {
+                document.title = tituloGuardado;
+            }
+        }
+
         // Inicializar: cargar desde la nube, configurar realtime, y refrescar periódicamente
         (async () => {
+            cargarPersonalizaciones();
             await cargarProyectosAreasEquipos();
             await recargarCitas();
             await recargarEquipos();
