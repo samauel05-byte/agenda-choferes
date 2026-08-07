@@ -1675,7 +1675,8 @@
             horaAlmuerzoFin.setHours(13, 0, 0, 0);
 
             if (fechaInicio < horaAlmuerzoFin && fechaFin > horaAlmuerzoInicio) {
-                return `⚠️ Esta reserva interfiere con la hora de almuerzo (12:00-13:00). La jornada será pausada automáticamente durante ese período.`;
+                // ❌ BLOQUEAR: No permitir reservas que toquen hora de almuerzo
+                return `❌ No se permite programar durante la hora de almuerzo (12:00-13:00). Elige otro horario.`;
             }
 
             for (let cita of citas) {
