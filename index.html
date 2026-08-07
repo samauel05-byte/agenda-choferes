@@ -927,7 +927,7 @@
 
     <footer>
         <p>&copy; 2026 Grupo Dupla | Constructora Dupla • Porto Valencia</p>
-        <p style="font-size: 0.85rem; margin-top: 0.5rem;">Programador de Logística de Equipos Pesados • Version SamKill 0.7</p>
+        <p style="font-size: 0.85rem; margin-top: 0.5rem;">Programador de Logística de Equipos Pesados • Version SamKill 0.8</p>
         <div class="footer-social">
             <a href="https://www.instagram.com/portovalencia/?hl=en" target="_blank" rel="noopener noreferrer" aria-label="Instagram de Porto Valencia" title="Instagram">
                 <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M12 2c-2.72 0-3.06.01-4.12.06-1.06.05-1.79.22-2.43.47-.66.26-1.22.6-1.77 1.16-.56.55-.9 1.11-1.16 1.77-.25.64-.42 1.37-.47 2.43C2.01 8.94 2 9.28 2 12s.01 3.06.06 4.12c.05 1.06.22 1.79.47 2.43.26.66.6 1.22 1.16 1.77.55.56 1.11.9 1.77 1.16.64.25 1.37.42 2.43.47C8.94 21.99 9.28 22 12 22s3.06-.01 4.12-.06c1.06-.05 1.79-.22 2.43-.47.66-.26 1.22-.6 1.77-1.16.56-.55.9-1.11 1.16-1.77.25-.64.42-1.37.47-2.43.05-1.06.06-1.4.06-4.12s-.01-3.06-.06-4.12c-.05-1.06-.22-1.79-.47-2.43-.26-.66-.6-1.22-1.16-1.77-.55-.56-1.11-.9-1.77-1.16-.64-.25-1.37-.42-2.43-.47C15.06 2.01 14.72 2 12 2zm0 1.8c2.67 0 2.99.01 4.04.06.98.04 1.5.21 1.85.34.47.18.8.4 1.15.75.35.35.57.68.75 1.15.13.36.3.88.34 1.85.05 1.05.06 1.37.06 4.04s-.01 2.99-.06 4.04c-.04.98-.21 1.5-.34 1.85-.18.47-.4.8-.75 1.15-.35.35-.68.57-1.15.75-.36.13-.88.3-1.85.34-1.05.05-1.37.06-4.04.06s-2.99-.01-4.04-.06c-.98-.04-1.5-.21-1.85-.34-.47-.18-.8-.4-1.15-.75-.35-.35-.57-.68-.75-1.15-.13-.36-.3-.88-.34-1.85C3.81 14.99 3.8 14.67 3.8 12s.01-2.99.06-4.04c.04-.98.21-1.5.34-1.85.18-.47.4-.8.75-1.15.35-.35.68-.57 1.15-.75.36-.13.88-.3 1.85-.34C9.01 3.81 9.33 3.8 12 3.8zm0 3.05a5.15 5.15 0 1 0 0 10.3 5.15 5.15 0 0 0 0-10.3zm0 8.5a3.35 3.35 0 1 1 0-6.7 3.35 3.35 0 0 1 0 6.7zm5.35-8.7a1.2 1.2 0 1 1-2.4 0 1.2 1.2 0 0 1 2.4 0z"/></svg>
@@ -2107,7 +2107,9 @@
 
         // Activar modo administrador con código maestro
         function activarModoAdmin() {
+            console.log('🔐 Intentando activar modo admin...');
             const codigo = document.getElementById('codigoMaestro').value;
+            console.log('Código ingresado:', codigo, 'Código esperado:', CODIGO_MAESTRO);
             const indicador = document.getElementById('modoAdminIndicador');
             const textoIndicador = document.getElementById('modoAdminTexto');
 
@@ -2117,6 +2119,7 @@
             }
 
             if (codigo === CODIGO_MAESTRO) {
+                console.log('✅ Código correcto!');
                 modoAdminActivo = true;
                 document.getElementById('codigoMaestro').value = '';
                 indicador.style.background = '#DCFCE7';
@@ -2262,65 +2265,6 @@
             actualizarDashboard();
             cerrarModalEdicion();
             mostrarAlerta('✅ Asignación actualizada correctamente', 'success');
-        }
-
-
-            // Crear contenido CSV
-            const headers = ['Proyecto', 'Área', 'Equipo', 'Capataz', 'Fecha Inicio', 'Duración', 'Notas'];
-            const rows = citasMes.map(cita => {
-                const fecha = new Date(cita.inicio).toLocaleString('es-DO');
-                return [
-                    cita.proyecto,
-                    cita.area || '',
-                    cita.equipo,
-                    cita.nombre,
-                    fecha,
-                    formatearDuracionCita(cita),
-                    (cita.notas || '').replace(/,/g, ';')
-                ];
-            });
-
-            let csv = headers.join(',') + '\n';
-            rows.forEach(row => {
-                csv += '"' + row.join('","') + '"\n';
-            });
-
-            // Descargar archivo
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement('a');
-            const url = URL.createObjectURL(blob);
-            link.setAttribute('href', url);
-            link.setAttribute('download', nombreArchivo);
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-
-            // Eliminar de la nube los datos del mes reportado
-            const idsMes = citasMes.map(c => c.id);
-            const { error } = await sb.rpc('admin_eliminar_reservas_ids', {
-                codigo: CODIGO_MAESTRO,
-                ids: idsMes
-            });
-            if (error) {
-                console.error('Error limpiando datos:', error);
-                mostrarAlerta('❌ No se pudieron limpiar los datos del mes', 'error');
-                return;
-            }
-            await recargarCitas();
-            actualizarDashboard();
-            
-            // Mostrar confirmación
-            const reporteInfo = document.getElementById('reporteInfo');
-            const reporteTexto = document.getElementById('reporteTexto');
-            reporteTexto.innerHTML = `✅ <strong>Reporte generado exitosamente</strong><br>
-                Archivo descargado: ${nombreArchivo}<br>
-                Asignaciones procesadas: ${citasMes.length}<br>
-                Datos del mes eliminados del sistema`;
-            reporteInfo.style.display = 'block';
-
-            mostrarAlerta(`✅ Reporte de ${nombreMes} descargado y datos limpiados`, 'success');
-            document.getElementById('mesReporte').value = '';
         }
 
         // Descargar respaldo CSV de todas las reservas
