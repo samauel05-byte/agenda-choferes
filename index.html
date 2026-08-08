@@ -223,16 +223,45 @@
         }
 
         .alert {
-            padding: 1rem;
-            border-radius: 6px;
-            margin-bottom: 1.5rem;
+            position: fixed;
+            top: 1.5rem;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            padding: 1.5rem 2.5rem;
+            border-radius: 10px;
             display: none;
-            border-left: 4px solid;
-            animation: slideIn 0.3s ease;
+            border-left: 6px solid;
+            font-size: 1.3rem;
+            font-weight: 700;
+            text-align: center;
+            max-width: 90vw;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+            animation: slideInAlert 0.3s ease;
         }
 
         .alert.show {
             display: block;
+        }
+
+        @keyframes slideInAlert {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(-15px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+
+        @media (max-width: 600px) {
+            .alert {
+                top: 0.75rem;
+                padding: 1.1rem 1.5rem;
+                font-size: 1.05rem;
+                width: 92vw;
+            }
         }
 
         .alert-success {
@@ -1583,10 +1612,8 @@
         // Mostrar alerta
         function mostrarAlerta(mensaje, tipo = 'success') {
             alertBox.textContent = mensaje;
+            // position: fixed la mantiene visible en pantalla sin importar el scroll.
             alertBox.className = `alert show alert-${tipo}`;
-            // Aseguramos que la alerta quede visible sin importar dónde esté
-            // desplazado el usuario en la página (ej: si venía de abajo del todo).
-            alertBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
             setTimeout(() => {
                 alertBox.classList.remove('show');
             }, 4000);
