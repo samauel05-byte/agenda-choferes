@@ -706,15 +706,15 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label for="proyecto">Proyecto *</label>
-                        <input type="text" id="proyecto" list="proyectosList" placeholder="Elige o escribe el proyecto..." autocomplete="off" required>
-                        <datalist id="proyectosList">
-                            <option value="VISTA CANA"></option>
-                            <option value="UNIVERSE B"></option>
-                            <option value="PLAYA SERENA"></option>
-                            <option value="W-MARRIOTT (GARANTIA)"></option>
-                            <option value="ZEMI EN MICHES (GARANTIA)"></option>
-                            <option value="CANA ROCK II (GARANTIA)"></option>
-                        </datalist>
+                        <select id="proyecto" required style="width: 100%; padding: 0.7rem; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 1rem;">
+                            <option value="">Selecciona un proyecto...</option>
+                            <option value="VISTA CANA">VISTA CANA</option>
+                            <option value="UNIVERSE B">UNIVERSE B</option>
+                            <option value="PLAYA SERENA">PLAYA SERENA</option>
+                            <option value="W-MARRIOTT (GARANTIA)">W-MARRIOTT (GARANTIA)</option>
+                            <option value="ZEMI EN MICHES (GARANTIA)">ZEMI EN MICHES (GARANTIA)</option>
+                            <option value="CANA ROCK II (GARANTIA)">CANA ROCK II (GARANTIA)</option>
+                        </select>
                     </div>
                     <div class="form-group">
                         <label for="equipo">Equipo Pesado *</label>
