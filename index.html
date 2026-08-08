@@ -1405,6 +1405,12 @@
                 updateData.hora_llegada_real = ahora.toISOString();
             } else if (valor === 'en_labor') {
                 updateData.hora_inicio_labor = ahora.toISOString();
+                // Si estaba pausada, registrar reanudación
+                if (cita.estado_recepcion === 'pausada') {
+                    updateData.hora_reanudacion = ahora.toISOString();
+                }
+            } else if (valor === 'pausada') {
+                updateData.hora_pausa = ahora.toISOString();
             } else if (valor === 'terminada') {
                 updateData.hora_fin_real = ahora.toISOString();
 
@@ -1951,17 +1957,21 @@
                                                 return `
                                                     <div style="margin-top: 0.5rem;">
                                                         <span style="display: inline-block; font-size: 0.8rem; font-weight: 600; padding: 0.25rem 0.6rem; border-radius: 4px; color: ${info.color}; background: ${info.fondo};">${info.texto}</span>
-                                                        ${cita.hora_llegada_real || cita.hora_inicio_labor ? `
-                                                            <div style="margin-top: 0.4rem; font-size: 0.75rem; color: #6B7280; background: #F9FAFB; padding: 0.4rem 0.6rem; border-radius: 4px;">
-                                                                ${cita.hora_llegada_real ? `Llegó: ${new Date(cita.hora_llegada_real).toLocaleTimeString('es-DO', {hour: '2-digit', minute: '2-digit', hour12: true})}` : ''}
-                                                                ${cita.hora_llegada_real && cita.hora_inicio_labor ? ' - ' : ''}
-                                                                ${cita.hora_inicio_labor ? `📱 Inicio: ${new Date(cita.hora_inicio_labor).toLocaleTimeString('es-DO', {hour: '2-digit', minute: '2-digit', hour12: true})}` : ''}
+                                                        ${cita.hora_llegada_real || cita.hora_inicio_labor || cita.hora_pausa || cita.hora_reanudacion || cita.hora_fin_real ? `
+                                                            <div style="margin-top: 0.4rem; font-size: 0.75rem; color: #6B7280; background: #F9FAFB; padding: 0.4rem 0.6rem; border-radius: 4px; line-height: 1.4;">
+                                                                <strong>Timeline:</strong><br>
+                                                                ${cita.hora_llegada_real ? `📍 Llegó: ${new Date(cita.hora_llegada_real).toLocaleTimeString('es-DO', {hour: '2-digit', minute: '2-digit', hour12: true})}<br>` : ''}
+                                                                ${cita.hora_inicio_labor ? `🔧 Inicio: ${new Date(cita.hora_inicio_labor).toLocaleTimeString('es-DO', {hour: '2-digit', minute: '2-digit', hour12: true})}<br>` : ''}
+                                                                ${cita.hora_pausa ? `⏸️ Pausa: ${new Date(cita.hora_pausa).toLocaleTimeString('es-DO', {hour: '2-digit', minute: '2-digit', hour12: true})}<br>` : ''}
+                                                                ${cita.hora_reanudacion ? `▶️ Reanudó: ${new Date(cita.hora_reanudacion).toLocaleTimeString('es-DO', {hour: '2-digit', minute: '2-digit', hour12: true})}<br>` : ''}
+                                                                ${cita.hora_fin_real ? `✅ Término: ${new Date(cita.hora_fin_real).toLocaleTimeString('es-DO', {hour: '2-digit', minute: '2-digit', hour12: true})}` : ''}
                                                             </div>
                                                         ` : ''}
                                                         <div style="margin-top: 0.4rem; display: flex; gap: 0.4rem; flex-wrap: wrap;">
                                                             ${estadoRecepcion === 'pendiente' ? `<button onclick="marcarRecepcion('${cita.id}', 'llegada')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #0891B2; color: white; border: none; border-radius: 4px; cursor: pointer;">🏗️ Llego a la obra</button>` : ''}
                                                             ${(estadoRecepcion === 'llegada' || estadoRecepcion === 'pausada') ? `<button onclick="marcarRecepcion('${cita.id}', 'en_labor')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #10B981; color: white; border: none; border-radius: 4px; cursor: pointer;">🔧 Iniciar</button>` : ''}
                                                             ${estadoRecepcion === 'en_labor' ? `<button onclick="marcarRecepcion('${cita.id}', 'pausada')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #7C3AED; color: white; border: none; border-radius: 4px; cursor: pointer;">⏸️ Pausar</button>` : ''}
+                                                            ${estadoRecepcion === 'pausada' ? `<button onclick="marcarRecepcion('${cita.id}', 'en_labor')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #3B82F6; color: white; border: none; border-radius: 4px; cursor: pointer;">▶️ Reanudar</button>` : ''}
                                                             ${(estadoRecepcion === 'llegada' || estadoRecepcion === 'en_labor' || estadoRecepcion === 'pausada') ? `<button onclick="marcarRecepcion('${cita.id}', 'terminada')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #DC2626; color: white; border: none; border-radius: 4px; cursor: pointer;">✅ Terminar</button>` : ''}
                                                         </div>
                                                     </div>
