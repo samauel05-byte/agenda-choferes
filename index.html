@@ -1387,12 +1387,15 @@
             const cita = citasCache.find(c => c.id === id);
             if (!cita) return;
 
-            const nombreIngresado = prompt('Escribe tu nombre (el mismo con el que hiciste la solicitud) para confirmar:');
-            if (nombreIngresado === null) return; // Canceló
+            // Solo pedir confirmación de nombre al TERMINAR
+            if (valor === 'terminada') {
+                const nombreIngresado = prompt('¿Quién finaliza esta labor? Escribe el nombre:');
+                if (nombreIngresado === null) return; // Canceló
 
-            if (nombreIngresado.trim().toLowerCase() !== (cita.nombre || '').trim().toLowerCase()) {
-                mostrarAlerta('🔒 Ese nombre no coincide con quien solicitó este equipo', 'error');
-                return;
+                if (nombreIngresado.trim().toLowerCase() !== (cita.nombre || '').trim().toLowerCase()) {
+                    mostrarAlerta('🔒 Ese nombre no coincide con quien solicitó este equipo', 'error');
+                    return;
+                }
             }
 
             const ahora = new Date();
