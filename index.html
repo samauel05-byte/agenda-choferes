@@ -223,16 +223,45 @@
         }
 
         .alert {
-            padding: 1rem;
-            border-radius: 6px;
-            margin-bottom: 1.5rem;
+            position: fixed;
+            top: 1.5rem;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            padding: 1.5rem 2.5rem;
+            border-radius: 10px;
             display: none;
-            border-left: 4px solid;
-            animation: slideIn 0.3s ease;
+            border-left: 6px solid;
+            font-size: 1.3rem;
+            font-weight: 700;
+            text-align: center;
+            max-width: 90vw;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+            animation: slideInAlert 0.3s ease;
         }
 
         .alert.show {
             display: block;
+        }
+
+        @keyframes slideInAlert {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(-15px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+
+        @media (max-width: 600px) {
+            .alert {
+                top: 0.75rem;
+                padding: 1.1rem 1.5rem;
+                font-size: 1.05rem;
+                width: 92vw;
+            }
         }
 
         .alert-success {
@@ -833,6 +862,31 @@
             <!-- Resumen estadístico -->
             <div id="resumenReporteria" style="margin-top: 1.5rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
                 <!-- Se llena con JavaScript -->
+            </div>
+        </div>
+
+        <!-- PANEL DE ADMINISTRACIÓN: aprobar y eliminar asignaciones (SOLO ADMIN) -->
+        <div class="card" id="cardPanelAdmin" style="margin-top: 2rem; display: none;">
+            <h2 class="section-title">🛠️ Panel de Administración</h2>
+            <p style="margin-bottom: 1.5rem; color: #6B7280; font-size: 0.95rem;">
+                Revisa todas las asignaciones registradas. <strong>Aprobar</strong> la marca como revisada; <strong>Eliminar</strong> la borra permanentemente.
+            </p>
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                    <thead style="background: #F3F4F6;">
+                        <tr>
+                            <th style="padding: 0.75rem; text-align: left; border-bottom: 2px solid #D1D5DB; font-weight: 600;">Fecha</th>
+                            <th style="padding: 0.75rem; text-align: left; border-bottom: 2px solid #D1D5DB; font-weight: 600;">Proyecto</th>
+                            <th style="padding: 0.75rem; text-align: left; border-bottom: 2px solid #D1D5DB; font-weight: 600;">Equipo</th>
+                            <th style="padding: 0.75rem; text-align: left; border-bottom: 2px solid #D1D5DB; font-weight: 600;">Operador</th>
+                            <th style="padding: 0.75rem; text-align: center; border-bottom: 2px solid #D1D5DB; font-weight: 600;">Estado</th>
+                            <th style="padding: 0.75rem; text-align: center; border-bottom: 2px solid #D1D5DB; font-weight: 600;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bodyPanelAdmin">
+                        <!-- Se llena con JavaScript -->
+                    </tbody>
+                </table>
             </div>
         </div>
         </div>
@@ -1558,10 +1612,8 @@
         // Mostrar alerta
         function mostrarAlerta(mensaje, tipo = 'success') {
             alertBox.textContent = mensaje;
+            // position: fixed la mantiene visible en pantalla sin importar el scroll.
             alertBox.className = `alert show alert-${tipo}`;
-            // Aseguramos que la alerta quede visible sin importar dónde esté
-            // desplazado el usuario en la página (ej: si venía de abajo del todo).
-            alertBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
             setTimeout(() => {
                 alertBox.classList.remove('show');
             }, 4000);
@@ -2027,6 +2079,63 @@
             if (cardReporteria) {
                 cardReporteria.style.display = modoAdminActivo ? '' : 'none';
             }
+
+            // Ocultar panel de administración si no es administrador
+            const cardPanelAdmin = document.getElementById('cardPanelAdmin');
+            if (cardPanelAdmin) {
+                cardPanelAdmin.style.display = modoAdminActivo ? '' : 'none';
+                if (modoAdminActivo) renderizarPanelAdmin();
+            }
+        }
+
+        // Panel de administración: lista plana de todas las asignaciones con
+        // acciones de Aprobar (marca revisada) y Eliminar (solo modo admin).
+        function renderizarPanelAdmin() {
+            const bodyEl = document.getElementById('bodyPanelAdmin');
+            if (!bodyEl) return;
+
+            if (citasCache.length === 0) {
+                bodyEl.innerHTML = '<tr><td colspan="6" style="padding: 1rem; text-align: center; color: #9CA3AF;">Sin asignaciones registradas</td></tr>';
+                return;
+            }
+
+            bodyEl.innerHTML = citasCache.map(cita => {
+                const aprobada = cita.aprobado === true;
+                return `
+                    <tr style="border-bottom: 1px solid #E5E7EB;">
+                        <td style="padding: 0.6rem 0.75rem;">${new Date(cita.inicio).toLocaleString('es-DO')}</td>
+                        <td style="padding: 0.6rem 0.75rem;">${escapeHtml(cita.proyecto || '')}</td>
+                        <td style="padding: 0.6rem 0.75rem;">${escapeHtml(cita.equipo || '')}</td>
+                        <td style="padding: 0.6rem 0.75rem;">${escapeHtml(cita.nombre || '')}</td>
+                        <td style="padding: 0.6rem 0.75rem; text-align: center;">
+                            ${aprobada
+                                ? '<span style="font-size: 0.8rem; font-weight: 600; padding: 0.25rem 0.6rem; border-radius: 4px; color: #065F46; background: #D1FAE5;">✅ Aprobada</span>'
+                                : '<span style="font-size: 0.8rem; font-weight: 600; padding: 0.25rem 0.6rem; border-radius: 4px; color: #92400E; background: #FEF3C7;">⏳ Sin revisar</span>'}
+                        </td>
+                        <td style="padding: 0.6rem 0.75rem; text-align: center; white-space: nowrap;">
+                            ${!aprobada ? `<button onclick="aprobarAsignacion('${cita.id}')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #10B981; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 0.4rem;">✅ Aprobar</button>` : ''}
+                            <button onclick="eliminarAsignacion('${cita.id}')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #EF4444; color: white; border: none; border-radius: 4px; cursor: pointer;">🗑️ Eliminar</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Aprobar una asignación: solo la marca como revisada, no bloquea nada (solo modo admin)
+        async function aprobarAsignacion(id) {
+            if (!modoAdminActivo) {
+                mostrarAlerta('🔒 Necesitas estar en modo administrador', 'error');
+                return;
+            }
+            const { error } = await sb.from('reservas').update({ aprobado: true }).eq('id', id);
+            if (error) {
+                console.error('Error aprobando reserva:', error);
+                mostrarAlerta('❌ No se pudo aprobar la asignación', 'error');
+                return;
+            }
+            await recargarCitas();
+            actualizarDashboard();
+            mostrarAlerta('✅ Asignación aprobada', 'success');
         }
 
         // Cargar reportería de operaciones completadas POR DÍA (SOLO ADMINISTRADOR)
