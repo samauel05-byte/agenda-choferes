@@ -87,6 +87,7 @@
             height: 110px;
             width: auto;
             flex-shrink: 0;
+            object-fit: contain;
         }
 
         .header-text {
@@ -2578,9 +2579,6 @@
                     logoElements.forEach(el => {
                         const img = document.createElement('img');
                         img.src = logoGuardado;
-                        img.style.width = '100%';
-                        img.style.height = '100%';
-                        img.style.objectFit = 'contain';
                         img.className = 'logo-svg';
                         el.replaceWith(img);
                     });
