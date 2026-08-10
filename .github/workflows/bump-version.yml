@@ -1,0 +1,46 @@
+name: Auto-incrementar versión
+
+on:
+  push:
+    branches: [main]
+    paths: ["index.html"]
+
+jobs:
+  bump-version:
+    if: "!contains(github.event.head_commit.message, '[skip version]')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Incrementar versión SamKill en index.html
+        id: bump
+        run: |
+          CURRENT=$(grep -oP 'SamKill \K[0-9]+\.[0-9]+' index.html | head -1)
+          if [ -z "$CURRENT" ]; then
+            echo "No se encontró la versión SamKill en index.html, se omite."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          NEW=$(awk -v v="$CURRENT" 'BEGIN {
+            split(v, a, ".");
+            major = a[1] + 0;
+            minor = a[2] + 1;
+            if (minor >= 10) { minor = 0; major += 1 }
+            printf "%d.%d", major, minor
+          }')
+
+          sed -i "s/SamKill $CURRENT/SamKill $NEW/" index.html
+          echo "new_version=$NEW" >> "$GITHUB_OUTPUT"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Commitear y pushear el nuevo número de versión
+        if: steps.bump.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Auto-incrementar versión a SamKill ${{ steps.bump.outputs.new_version }} [skip version]"
+          git push

@@ -360,6 +360,11 @@
             color: #7F1D1D;
         }
 
+        .status-pendiente {
+            background: #FEF3C7;
+            color: #92400E;
+        }
+
         .status-no-llego {
             background: #FEE2E2;
             color: #991B1B;
@@ -378,6 +383,10 @@
 
         .equipo-card:has(.status-en-uso) {
             border-left-color: var(--color-warning);
+        }
+
+        .equipo-card:has(.status-pendiente) {
+            border-left-color: #FBBF24;
         }
 
         .equipo-card:has(.status-no-llego) {
@@ -1792,6 +1801,12 @@
             return cursor;
         }
 
+        // Saber si un momento dado cae dentro de la hora de almuerzo (12:00-13:00)
+        function estaEnHoraDeAlmuerzo(fecha = new Date()) {
+            const minutosDelDia = fecha.getHours() * 60 + fecha.getMinutes();
+            return minutosDelDia >= 12 * 60 && minutosDelDia < 13 * 60;
+        }
+
         // Verificar conflicto de disponibilidad + hora de almuerzo (12:00-13:00)
         function verificarConflicto(equipo, inicio, duracion, excludeId = null) {
             const citas = cargarCitas();
@@ -1902,16 +1917,10 @@
                 const ahora = new Date();
                 const citasEquipo = citas
                     .filter(c => c.equipo === equipo)
-                    .filter(c => {
-                        // Ocultar agendas completadas/terminadas
-                        if (c.completada || c.estado_recepcion === 'terminada') {
-                            return false;
-                        }
-                        // Mantener solo las citas que aún no han terminado (en uso o futuras).
-                        // Las ya finalizadas se ocultan de la tarjeta pero permanecen en la base de datos.
-                        const fin = calcularFinJornada(new Date(c.inicio), c.duracion);
-                        return fin > ahora;
-                    })
+                    // Ocultar agendas completadas/terminadas. Las que ya pasaron su horario
+                    // pero nadie marcó "Terminó su labor" se mantienen visibles (vencidas)
+                    // en vez de desaparecer, para que no queden citas "perdidas" sin cerrar.
+                    .filter(c => !(c.completada || c.estado_recepcion === 'terminada'))
                     .sort((a, b) => new Date(a.inicio) - new Date(b.inicio));
 
                 // Determinar estado actual
@@ -1923,19 +1932,28 @@
                     const citaFin = calcularFinJornada(citaInicio, cita.duracion);
 
                     if (ahora >= citaInicio && ahora < citaFin) {
-                        // Si a esta cita la marcaron "No Recepción", el equipo nunca llegó
-                        // a la obra, así que no está realmente "En Uso" aunque esté dentro
-                        // de su horario programado.
-                        estadoActual = (cita.estado_recepcion === 'no_recibido') ? 'No Llegó' : 'En Uso';
-                        const minutosRestantes = Math.ceil((citaFin - ahora) / (1000 * 60));
-                        const horas = Math.floor(minutosRestantes / 60);
-                        const minutos = minutosRestantes % 60;
-
-                        // Solo mostrar tiempoRestante cuando está "En Uso", no cuando está "Disponible"
-                        if (horas > 0) {
-                            tiempoRestante = `Tiempo restante: ${horas}h ${minutos}m`;
+                        const recepcion = cita.estado_recepcion || 'pendiente';
+                        if (recepcion === 'no_recibido') {
+                            // El equipo nunca llegó a la obra, así que no está
+                            // realmente "En Uso" aunque esté dentro de su horario.
+                            estadoActual = 'No Llegó';
+                            tiempoRestante = '';
+                        } else if (recepcion === 'pendiente') {
+                            // Ya empezó su horario programado pero nadie marcó
+                            // "Llegó a la obra" todavía.
+                            estadoActual = 'Pendiente de Llegada';
+                            const minutosPendiente = Math.floor((ahora - citaInicio) / (1000 * 60));
+                            tiempoRestante = minutosPendiente > 0
+                                ? `Pendiente hace ${minutosPendiente} min`
+                                : 'Pendiente de llegada';
                         } else {
-                            tiempoRestante = `Tiempo restante: ${minutos}m`;
+                            estadoActual = 'En Uso';
+                            const minutosRestantes = Math.ceil((citaFin - ahora) / (1000 * 60));
+                            const horas = Math.floor(minutosRestantes / 60);
+                            const minutos = minutosRestantes % 60;
+                            tiempoRestante = horas > 0
+                                ? `Tiempo restante: ${horas}h ${minutos}m`
+                                : `Tiempo restante: ${minutos}m`;
                         }
                     }
                 });
@@ -1954,6 +1972,9 @@
                 } else if (estadoActual === 'No Llegó') {
                     badgeClass = 'status-no-llego';
                     emoji = '❌';
+                } else if (estadoActual === 'Pendiente de Llegada') {
+                    badgeClass = 'status-pendiente';
+                    emoji = '🟡';
                 } else if (estadoActual === 'En Uso') {
                     badgeClass = 'status-en-uso';
                     emoji = '🟠';
@@ -1985,6 +2006,8 @@
                                     const citaInicio = new Date(cita.inicio);
                                     const citaFin = calcularFinJornada(citaInicio, cita.duracion);
                                     const esActual = ahora >= citaInicio && ahora < citaFin;
+                                    const vencida = ahora >= citaFin && (cita.estado_recepcion || 'pendiente') !== 'terminada';
+                                    const hayReservaAplazada = vencida && idx < citasEquipo.length - 1;
                                     return `
                                         <div class="timeline-item ${esActual ? 'en-uso' : 'futuro'}">
                                             📍 <strong>${cita.proyecto}</strong>${cita.area ? ` <span style="color:#6B7280;font-weight:400;font-size:0.85rem;">(${escapeHtml(cita.area)})</span>` : ''}<br>
@@ -1996,6 +2019,11 @@
                                                 return costo !== null ? `<br>💰 ${formatearMoneda(costo)}` : '';
                                             })()}
                                             ${cita.notas ? `<br><span style="display: block; margin-top: 0.4rem; font-size: 0.85rem; color: #374151; background: #F3F4F6; padding: 0.4rem 0.6rem; border-radius: 4px; white-space: pre-wrap;">📝 ${escapeHtml(cita.notas)}</span>` : ''}
+                                            ${vencida ? (() => {
+                                                const minutosVencido = Math.floor((ahora - citaFin) / (1000 * 60));
+                                                return `<div style="margin-top: 0.5rem; padding: 0.5rem 0.7rem; background: #FEE2E2; color: #991B1B; border-radius: 4px; font-size: 0.8rem; font-weight: 700;">⏰ Vencido hace ${minutosVencido}m — falta marcar "Terminó su labor"</div>`;
+                                            })() : ''}
+                                            ${hayReservaAplazada ? `<div style="margin-top: 0.4rem; padding: 0.5rem 0.7rem; background: #FEF3C7; color: #92400E; border-radius: 4px; font-size: 0.8rem; font-weight: 700;">⚠️ Turno vencido — siguiente reserva aplazada hasta marcar terminado</div>` : ''}
                                             ${(() => {
                                                 const estadoRecepcion = cita.estado_recepcion || 'pendiente';
                                                 let estadoTexto = estadoRecepcion;
@@ -2006,7 +2034,9 @@
                                                     pendiente: { texto: '⏳ Esperando llegada', color: '#92400E', fondo: '#FEF3C7' },
                                                     llegada: { texto: '🏗️ Llegó a la obra', color: '#0891B2', fondo: '#CFFAFE' },
                                                     en_labor: { texto: '🔧 Labor en progreso', color: '#065F46', fondo: '#D1FAE5' },
-                                                    pausada: { texto: '⏸️ Labor pausada', color: '#7C3AED', fondo: '#EDE9FE' },
+                                                    pausada: cita.pausada_por_almuerzo
+                                                        ? { texto: '⏸️ En almuerzo — reanuda a la 1:00pm', color: '#7C3AED', fondo: '#EDE9FE' }
+                                                        : { texto: '⏸️ Labor pausada', color: '#7C3AED', fondo: '#EDE9FE' },
                                                     terminada: { texto: '✅ Labor terminada', color: '#DC2626', fondo: '#FEE2E2' },
                                                     terminada_pendiente: { texto: '⏳ Pendiente de liberación', color: '#D97706', fondo: '#FEF3C7' }
                                                 }[estadoTexto];
@@ -2031,6 +2061,7 @@
                                                             ${(estadoRecepcion === 'llegada' || estadoRecepcion === 'en_labor' || estadoRecepcion === 'pausada') ? `<button onclick="marcarRecepcion('${cita.id}', 'terminada')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #DC2626; color: white; border: none; border-radius: 4px; cursor: pointer;">✅ Terminar</button>` : ''}
                                                             ${estadoRecepcion === 'terminada' && !cita.equipo_liberado ? `<button onclick="liberarEquipo('${cita.id}')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #059669; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">🔓 Liberar Equipo</button>` : ''}
                                                         </div>
+                                                        ${estadoRecepcion === 'pendiente' && estaEnHoraDeAlmuerzo() ? `<div style="margin-top: 0.4rem; padding: 0.5rem 0.7rem; background: #D1FAE5; color: #065F46; border-radius: 4px; font-size: 0.8rem; font-weight: 600;">🍽️ Hora de almuerzo (12:00pm-1:00pm) — el equipo se pausa automáticamente</div>` : ''}
                                                     </div>
                                                 `;
                                             })()}
