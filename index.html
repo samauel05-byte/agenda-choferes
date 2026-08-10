@@ -2574,52 +2574,46 @@
 
             const fileLogoInput = document.getElementById('fileLogo');
             const fileFaviconInput = document.getElementById('fileFavicon');
-            let archivosSeleccionados = false;
+            const tieneLogo = fileLogoInput.files && fileLogoInput.files.length > 0;
+            const tieneFavicon = fileFaviconInput.files && fileFaviconInput.files.length > 0;
 
-            // Procesar Logo
-            if (fileLogoInput.files && fileLogoInput.files.length > 0) {
-                const file = fileLogoInput.files[0];
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    try {
-                        const base64Data = e.target.result;
-                        localStorage.setItem('logoCustom', base64Data);
-                        fileLogoInput.value = '';
-                        archivosSeleccionados = true;
-                    } catch (err) {
-                        console.error('Error:', err);
-                        mostrarAlerta('❌ Error al procesar logo', 'error');
-                    }
-                };
-                reader.readAsDataURL(file);
+            if (!tieneLogo && !tieneFavicon) {
+                mostrarAlerta('⚠️ Selecciona al menos una imagen', 'error');
+                return;
             }
 
-            // Procesar Favicon
-            if (fileFaviconInput.files && fileFaviconInput.length > 0) {
-                const file = fileFaviconInput.files[0];
+            const leerComoBase64 = (file) => new Promise((resolve, reject) => {
                 const reader = new FileReader();
-                reader.onload = function(e) {
-                    try {
-                        const faviconLink = document.querySelector("link[rel='icon']");
-                        const base64Data = e.target.result;
-                        faviconLink.href = base64Data;
-                        localStorage.setItem('faviconCustom', base64Data);
-                        fileFaviconInput.value = '';
-                        archivosSeleccionados = true;
-                    } catch (err) {
-                        console.error('Error:', err);
-                        mostrarAlerta('❌ Error al procesar favicon', 'error');
-                    }
-                };
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = reject;
                 reader.readAsDataURL(file);
+            });
+
+            const tareas = [];
+
+            if (tieneLogo) {
+                tareas.push(leerComoBase64(fileLogoInput.files[0]).then(base64Data => {
+                    localStorage.setItem('logoCustom', base64Data);
+                    fileLogoInput.value = '';
+                }));
             }
 
-            if (archivosSeleccionados) {
+            if (tieneFavicon) {
+                tareas.push(leerComoBase64(fileFaviconInput.files[0]).then(base64Data => {
+                    const faviconLink = document.querySelector("link[rel='icon']");
+                    if (faviconLink) faviconLink.href = base64Data;
+                    localStorage.setItem('faviconCustom', base64Data);
+                    fileFaviconInput.value = '';
+                }));
+            }
+
+            Promise.all(tareas).then(() => {
                 mostrarAlerta('✅ Logo y Favicon guardados correctamente. Recargando...', 'success');
                 setTimeout(() => location.reload(), 1500);
-            } else {
-                mostrarAlerta('⚠️ Selecciona al menos una imagen', 'error');
-            }
+            }).catch(err => {
+                console.error('Error:', err);
+                mostrarAlerta('❌ Error al procesar la imagen', 'error');
+            });
         }
 
         // Restaurar por defecto
