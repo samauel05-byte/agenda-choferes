@@ -360,6 +360,11 @@
             color: #7F1D1D;
         }
 
+        .status-pendiente {
+            background: #FEF3C7;
+            color: #92400E;
+        }
+
         .status-no-llego {
             background: #FEE2E2;
             color: #991B1B;
@@ -378,6 +383,10 @@
 
         .equipo-card:has(.status-en-uso) {
             border-left-color: var(--color-warning);
+        }
+
+        .equipo-card:has(.status-pendiente) {
+            border-left-color: #FBBF24;
         }
 
         .equipo-card:has(.status-no-llego) {
@@ -1923,19 +1932,28 @@
                     const citaFin = calcularFinJornada(citaInicio, cita.duracion);
 
                     if (ahora >= citaInicio && ahora < citaFin) {
-                        // Si a esta cita la marcaron "No Recepción", el equipo nunca llegó
-                        // a la obra, así que no está realmente "En Uso" aunque esté dentro
-                        // de su horario programado.
-                        estadoActual = (cita.estado_recepcion === 'no_recibido') ? 'No Llegó' : 'En Uso';
-                        const minutosRestantes = Math.ceil((citaFin - ahora) / (1000 * 60));
-                        const horas = Math.floor(minutosRestantes / 60);
-                        const minutos = minutosRestantes % 60;
-
-                        // Solo mostrar tiempoRestante cuando está "En Uso", no cuando está "Disponible"
-                        if (horas > 0) {
-                            tiempoRestante = `Tiempo restante: ${horas}h ${minutos}m`;
+                        const recepcion = cita.estado_recepcion || 'pendiente';
+                        if (recepcion === 'no_recibido') {
+                            // El equipo nunca llegó a la obra, así que no está
+                            // realmente "En Uso" aunque esté dentro de su horario.
+                            estadoActual = 'No Llegó';
+                            tiempoRestante = '';
+                        } else if (recepcion === 'pendiente') {
+                            // Ya empezó su horario programado pero nadie marcó
+                            // "Llegó a la obra" todavía.
+                            estadoActual = 'Pendiente de Llegada';
+                            const minutosPendiente = Math.floor((ahora - citaInicio) / (1000 * 60));
+                            tiempoRestante = minutosPendiente > 0
+                                ? `Pendiente hace ${minutosPendiente} min`
+                                : 'Pendiente de llegada';
                         } else {
-                            tiempoRestante = `Tiempo restante: ${minutos}m`;
+                            estadoActual = 'En Uso';
+                            const minutosRestantes = Math.ceil((citaFin - ahora) / (1000 * 60));
+                            const horas = Math.floor(minutosRestantes / 60);
+                            const minutos = minutosRestantes % 60;
+                            tiempoRestante = horas > 0
+                                ? `Tiempo restante: ${horas}h ${minutos}m`
+                                : `Tiempo restante: ${minutos}m`;
                         }
                     }
                 });
@@ -1954,6 +1972,9 @@
                 } else if (estadoActual === 'No Llegó') {
                     badgeClass = 'status-no-llego';
                     emoji = '❌';
+                } else if (estadoActual === 'Pendiente de Llegada') {
+                    badgeClass = 'status-pendiente';
+                    emoji = '🟡';
                 } else if (estadoActual === 'En Uso') {
                     badgeClass = 'status-en-uso';
                     emoji = '🟠';
