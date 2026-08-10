@@ -1457,11 +1457,21 @@
                 }
             }
 
+            if (valor === 'no_recibido') {
+                const confirmarNoLlegada = confirm(`¿Confirmas que "${cita.equipo}" no llegó para la asignación de ${cita.nombre}? El equipo quedará liberado.`);
+                if (!confirmarNoLlegada) return;
+            }
+
             const ahora = new Date();
             const updateData = { estado_recepcion: valor };
 
             if (valor === 'llegada') {
                 updateData.hora_llegada_real = ahora.toISOString();
+                // Si el equipo estaba "Pendiente de Entrega", la hora programada original
+                // ya pasó de largo; al entregarse de verdad, la asignación arranca AHORA.
+                if (cita.estado_recepcion === 'pendiente_entrega') {
+                    updateData.inicio = ahora.toISOString();
+                }
             } else if (valor === 'en_labor') {
                 updateData.hora_inicio_labor = ahora.toISOString();
                 // Si estaba pausada, registrar reanudación
@@ -1528,6 +1538,12 @@
                 } else {
                     mensaje += `Labor finalizada en el tiempo programado.`;
                 }
+            } else if (valor === 'no_recibido') {
+                mostrarAlerta(`❌ "${cita.equipo}" marcado como No Llegó. El equipo quedó liberado.`, 'error');
+                return;
+            } else if (valor === 'pendiente_entrega') {
+                mostrarAlerta(`📦 "${cita.equipo}" marcado como Pendiente de Entrega. Cuando se entregue, tocá "Ya se entregó — Iniciar" para arrancar la asignación con la hora real.`, 'warning');
+                return;
             }
 
             mostrarAlerta(mensaje, 'success');
@@ -1743,17 +1759,17 @@
         });
 
         // ===== Jornada laboral =====
-        // Lunes a viernes: 8:30am - 5:00pm (8.5h) | Sábado: 8:30am - 12:00pm (3.5h) | Domingo: no laborable.
+        // Lunes a viernes: 8:30am - 5:00pm (8.5h) | Sábado: 8:30am - 6:00pm (9.5h) | Domingo: 8:30am - 1:00pm (4.5h).
         // La "duración" de una asignación se cuenta en horas de jornada laboral, no en horas de reloj corridas:
         // si una asignación no cabe en el resto del día, continúa en la próxima jornada disponible.
         const JORNADA_LABORAL = {
-            0: null,       // Domingo
+            0: [8.5, 13],  // Domingo
             1: [8.5, 17],  // Lunes
             2: [8.5, 17],  // Martes
             3: [8.5, 17],  // Miércoles
             4: [8.5, 17],  // Jueves
             5: [8.5, 17],  // Viernes
-            6: [8.5, 12]   // Sábado
+            6: [8.5, 18]   // Sábado
         };
 
         function horaDecimalADate(fechaBase, horaDecimal) {
@@ -1764,7 +1780,7 @@
             return d;
         }
 
-        // Devuelve el inicio de la próxima jornada laboral disponible (saltando domingos)
+        // Devuelve el inicio de la próxima jornada laboral disponible
         function siguienteInicioJornada(fecha) {
             let d = new Date(fecha);
             d.setDate(d.getDate() + 1);
@@ -1777,7 +1793,7 @@
         }
 
         // Calcula la fecha/hora real de fin de una asignación, contando solo horas dentro
-        // de la jornada laboral (Lun-Vie 8:30am-5pm, Sáb 8:30am-12pm; domingo no cuenta).
+        // de la jornada laboral (Lun-Vie 8:30am-5pm, Sáb 8:30am-6pm, Dom 8:30am-1pm).
         function calcularFinJornada(inicio, duracionHoras) {
             let cursor = new Date(inicio);
             let restante = Number(duracionHoras) || 0;
@@ -1903,7 +1919,11 @@
             const ahoraDashboard = new Date();
             const citasActivas = citas.filter(c => {
                 const fin = calcularFinJornada(new Date(c.inicio), c.duracion);
-                return fin > ahoraDashboard;
+                if (fin > ahoraDashboard) return true;
+                // Aunque ya pasó su horario, si quedó "colgada" sin cerrar (llegó pero
+                // nadie marcó terminado, o está pendiente de entrega) el equipo se
+                // sigue mostrando para que se pueda resolver, en vez de desaparecer.
+                return ['llegada', 'en_labor', 'pausada', 'pendiente_entrega'].includes(c.estado_recepcion);
             });
             const equiposConAgenda = [...new Set(citasActivas.map(c => c.equipo).filter(Boolean))];
             // En modo administrador se siguen mostrando también los equipos sin
@@ -1927,10 +1947,11 @@
                 const ahora = new Date();
                 const citasEquipo = citas
                     .filter(c => c.equipo === equipo)
-                    // Ocultar agendas completadas/terminadas. Las que ya pasaron su horario
-                    // pero nadie marcó "Terminó su labor" se mantienen visibles (vencidas)
-                    // en vez de desaparecer, para que no queden citas "perdidas" sin cerrar.
-                    .filter(c => !(c.completada || c.estado_recepcion === 'terminada'))
+                    // Ocultar agendas completadas/terminadas y las marcadas "No Llegó"
+                    // (esas ya liberaron el equipo). Las que ya pasaron su horario pero
+                    // nadie marcó "Terminó su labor" se mantienen visibles (vencidas) en
+                    // vez de desaparecer, para que no queden citas "perdidas" sin cerrar.
+                    .filter(c => !(c.completada || c.estado_recepcion === 'terminada' || c.estado_recepcion === 'no_recibido'))
                     .sort((a, b) => new Date(a.inicio) - new Date(b.inicio));
 
                 // Determinar estado actual
@@ -2016,7 +2037,7 @@
                                     const citaInicio = new Date(cita.inicio);
                                     const citaFin = calcularFinJornada(citaInicio, cita.duracion);
                                     const esActual = ahora >= citaInicio && ahora < citaFin;
-                                    const vencida = ahora >= citaFin && (cita.estado_recepcion || 'pendiente') !== 'terminada';
+                                    const vencida = ahora >= citaFin && !['terminada', 'pendiente_entrega'].includes(cita.estado_recepcion || 'pendiente');
                                     const hayReservaAplazada = vencida && idx < citasEquipo.length - 1;
                                     return `
                                         <div class="timeline-item ${esActual ? 'en-uso' : 'futuro'}">
@@ -2048,7 +2069,9 @@
                                                         ? { texto: '⏸️ En almuerzo — reanuda a la 1:00pm', color: '#7C3AED', fondo: '#EDE9FE' }
                                                         : { texto: '⏸️ Labor pausada', color: '#7C3AED', fondo: '#EDE9FE' },
                                                     terminada: { texto: '✅ Labor terminada', color: '#DC2626', fondo: '#FEE2E2' },
-                                                    terminada_pendiente: { texto: '⏳ Pendiente de liberación', color: '#D97706', fondo: '#FEF3C7' }
+                                                    terminada_pendiente: { texto: '⏳ Pendiente de liberación', color: '#D97706', fondo: '#FEF3C7' },
+                                                    no_recibido: { texto: '❌ No Llegó', color: '#991B1B', fondo: '#FEE2E2' },
+                                                    pendiente_entrega: { texto: '📦 Pendiente de Entrega', color: '#9A3412', fondo: '#FFEDD5' }
                                                 }[estadoTexto];
                                                 return `
                                                     <div style="margin-top: 0.5rem;">
@@ -2065,6 +2088,9 @@
                                                         ` : ''}
                                                         <div style="margin-top: 0.4rem; display: flex; gap: 0.4rem; flex-wrap: wrap;">
                                                             ${estadoRecepcion === 'pendiente' ? `<button onclick="marcarRecepcion('${cita.id}', 'llegada')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #0891B2; color: white; border: none; border-radius: 4px; cursor: pointer;">🏗️ Llego a la obra</button>` : ''}
+                                                            ${estadoRecepcion === 'pendiente' ? `<button onclick="marcarRecepcion('${cita.id}', 'no_recibido')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #DC2626; color: white; border: none; border-radius: 4px; cursor: pointer;">❌ No Llegó</button>` : ''}
+                                                            ${estadoRecepcion === 'pendiente' ? `<button onclick="marcarRecepcion('${cita.id}', 'pendiente_entrega')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #C2410C; color: white; border: none; border-radius: 4px; cursor: pointer;">📦 Pendiente de Entrega</button>` : ''}
+                                                            ${estadoRecepcion === 'pendiente_entrega' ? `<button onclick="marcarRecepcion('${cita.id}', 'llegada')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #0891B2; color: white; border: none; border-radius: 4px; cursor: pointer;">🏗️ Ya se entregó — Iniciar</button>` : ''}
                                                             ${(estadoRecepcion === 'llegada' || estadoRecepcion === 'pausada') ? `<button onclick="marcarRecepcion('${cita.id}', 'en_labor')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #10B981; color: white; border: none; border-radius: 4px; cursor: pointer;">🔧 Iniciar</button>` : ''}
                                                             ${estadoRecepcion === 'en_labor' ? `<button onclick="marcarRecepcion('${cita.id}', 'pausada')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #7C3AED; color: white; border: none; border-radius: 4px; cursor: pointer;">⏸️ Pausar</button>` : ''}
                                                             ${estadoRecepcion === 'pausada' ? `<button onclick="marcarRecepcion('${cita.id}', 'en_labor')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #3B82F6; color: white; border: none; border-radius: 4px; cursor: pointer;">▶️ Reanudar</button>` : ''}
@@ -2091,6 +2117,7 @@
 
             dashboardEl.innerHTML = html;
             verificarHoraAlmuerzo(); // Verificar si es hora de pausar por almuerzo
+            verificarNoLlegada(); // Marcar automáticamente "No Llegó" si nadie marcó llegada a tiempo
 
             // Ocultar reportería si no es administrador
             const cardReporteria = document.getElementById('cardReporteria');
@@ -2251,6 +2278,36 @@
                     await recargarCitas();
                     actualizarDashboard();
                 }
+            }
+        }
+
+        // Vigila las citas "pendientes" (nadie marcó llegada) cuyo horario programado
+        // ya pasó por completo, y las marca automáticamente como "No Llegó" para
+        // liberar el equipo sin que un administrador tenga que hacerlo a mano.
+        async function verificarNoLlegada() {
+            const citas = cargarCitas();
+            const ahora = new Date();
+            const vencidaSinLlegar = citas.find(c => {
+                const estado = c.estado_recepcion || 'pendiente';
+                if (estado !== 'pendiente') return false;
+                const fin = calcularFinJornada(new Date(c.inicio), c.duracion);
+                return fin <= ahora;
+            });
+
+            if (vencidaSinLlegar) {
+                const { error } = await sb.from('reservas').update({ estado_recepcion: 'no_recibido' }).eq('id', vencidaSinLlegar.id);
+                if (error) {
+                    console.error('Error marcando No Llegó automáticamente:', error);
+                    return;
+                }
+
+                mostrarAlerta(
+                    `❌ "${vencidaSinLlegar.equipo}" se marcó automáticamente como No Llegó — nadie marcó su llegada dentro del horario programado. El equipo quedó liberado.`,
+                    'error'
+                );
+
+                await recargarCitas();
+                actualizarDashboard();
             }
         }
 
