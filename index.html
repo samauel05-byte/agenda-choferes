@@ -1216,6 +1216,16 @@
             actualizarDatalistEquipos(proyecto);
         });
 
+        // Safari/iOS (y otros navegadores móviles) a veces restauran los campos del
+        // formulario al volver de otra app (ej. WhatsApp) sin volver a ejecutar el
+        // JS, así que el select de Equipo puede quedar "pegado" en deshabilitado
+        // aunque el Proyecto ya esté elegido. Al mostrarse la página (incluida la
+        // restauración desde el historial/bfcache) resincronizamos con el valor
+        // real que quedó en pantalla.
+        window.addEventListener('pageshow', () => {
+            actualizarDatalistEquipos(document.getElementById('proyecto').value.trim());
+        });
+
         const citaForm = document.getElementById('citaForm');
         const alertBox = document.getElementById('alert');
         
