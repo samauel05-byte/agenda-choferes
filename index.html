@@ -1743,17 +1743,17 @@
         });
 
         // ===== Jornada laboral =====
-        // Lunes a viernes: 8:30am - 5:00pm (8.5h) | Sábado: 8:30am - 12:00pm (3.5h) | Domingo: no laborable.
+        // Lunes a viernes: 8:30am - 5:00pm (8.5h) | Sábado: 8:30am - 6:00pm (9.5h) | Domingo: 8:30am - 1:00pm (4.5h).
         // La "duración" de una asignación se cuenta en horas de jornada laboral, no en horas de reloj corridas:
         // si una asignación no cabe en el resto del día, continúa en la próxima jornada disponible.
         const JORNADA_LABORAL = {
-            0: null,       // Domingo
+            0: [8.5, 13],  // Domingo
             1: [8.5, 17],  // Lunes
             2: [8.5, 17],  // Martes
             3: [8.5, 17],  // Miércoles
             4: [8.5, 17],  // Jueves
             5: [8.5, 17],  // Viernes
-            6: [8.5, 12]   // Sábado
+            6: [8.5, 18]   // Sábado
         };
 
         function horaDecimalADate(fechaBase, horaDecimal) {
@@ -1764,7 +1764,7 @@
             return d;
         }
 
-        // Devuelve el inicio de la próxima jornada laboral disponible (saltando domingos)
+        // Devuelve el inicio de la próxima jornada laboral disponible
         function siguienteInicioJornada(fecha) {
             let d = new Date(fecha);
             d.setDate(d.getDate() + 1);
@@ -1777,7 +1777,7 @@
         }
 
         // Calcula la fecha/hora real de fin de una asignación, contando solo horas dentro
-        // de la jornada laboral (Lun-Vie 8:30am-5pm, Sáb 8:30am-12pm; domingo no cuenta).
+        // de la jornada laboral (Lun-Vie 8:30am-5pm, Sáb 8:30am-6pm, Dom 8:30am-1pm).
         function calcularFinJornada(inicio, duracionHoras) {
             let cursor = new Date(inicio);
             let restante = Number(duracionHoras) || 0;
