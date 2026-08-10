@@ -1207,23 +1207,21 @@
         }
         document.getElementById('proyecto').addEventListener('input', () => {
             toggleAreaGroup('proyecto', 'area', 'areaGroupRow');
-            const proyecto = document.getElementById('proyecto').value.trim();
-            actualizarDatalistEquipos(proyecto);
+            actualizarDatalistEquipos();
         });
         document.getElementById('editProyecto').addEventListener('input', () => {
             toggleAreaGroup('editProyecto', 'editArea', 'editAreaGroupRow');
-            const proyecto = document.getElementById('editProyecto').value.trim();
-            actualizarDatalistEquipos(proyecto);
+            actualizarDatalistEquipos();
         });
 
         // Safari/iOS (y otros navegadores móviles) a veces restauran los campos del
         // formulario al volver de otra app (ej. WhatsApp) sin volver a ejecutar el
         // JS, así que el select de Equipo puede quedar "pegado" en deshabilitado
         // aunque el Proyecto ya esté elegido. Al mostrarse la página (incluida la
-        // restauración desde el historial/bfcache) resincronizamos con el valor
-        // real que quedó en pantalla.
+        // restauración desde el historial/bfcache) resincronizamos con lo que
+        // haya quedado en pantalla.
         window.addEventListener('pageshow', () => {
-            actualizarDatalistEquipos(document.getElementById('proyecto').value.trim());
+            actualizarDatalistEquipos();
         });
 
         const citaForm = document.getElementById('citaForm');
@@ -1251,10 +1249,20 @@
         // y modal de edición). Los equipos marcados "Fuera de Servicio" se ocultan
         // para usuarios normales; solo en modo administrador se siguen mostrando
         // (para poder reactivarlos).
-        function actualizarDatalistEquipos(proyecto = '') {
-            ['equipo', 'editEquipo'].forEach(id => {
-                const select = document.getElementById(id);
-                if (!select) return;
+        function actualizarDatalistEquipos() {
+            // Cada select de equipo se sincroniza con SU PROPIO campo de proyecto
+            // (nunca con un valor pasado por parámetro), así que llamar a esta
+            // función desde cualquier lado (la sincronización cada 60s con la
+            // nube, el modal de editar, pageshow, etc.) siempre respeta lo que
+            // la persona ya tiene elegido en pantalla, sin resetear nada.
+            [
+                { equipoId: 'equipo', proyectoId: 'proyecto' },
+                { equipoId: 'editEquipo', proyectoId: 'editProyecto' }
+            ].forEach(({ equipoId, proyectoId }) => {
+                const select = document.getElementById(equipoId);
+                const proyectoEl = document.getElementById(proyectoId);
+                if (!select || !proyectoEl) return;
+                const proyecto = proyectoEl.value.trim();
 
                 // Sin proyecto elegido todavía no se puede elegir equipo: cada
                 // proyecto tiene su propio equipo, así que hay que seleccionar
@@ -1755,7 +1763,7 @@
 
             citaForm.reset();
             document.getElementById('areaGroupRow').style.display = 'none';
-            actualizarDatalistEquipos('');
+            actualizarDatalistEquipos();
             limpiarErrorEquipo();
             actualizarCostoEstimado();
             verificarDisponibilidadEnVivo();
@@ -2396,7 +2404,7 @@
             document.getElementById('editId').value = cita.id;
             document.getElementById('editNombre').value = cita.nombre || '';
             document.getElementById('editProyecto').value = cita.proyecto || '';
-            actualizarDatalistEquipos(cita.proyecto || '');
+            actualizarDatalistEquipos();
             document.getElementById('editEquipo').value = cita.equipo || '';
             document.getElementById('editInicio').value = (cita.inicio || '').slice(0, 16);
             const desgloseEdicion = (cita.duracion_horas !== undefined && cita.duracion_horas !== null)
