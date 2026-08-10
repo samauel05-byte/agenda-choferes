@@ -1801,6 +1801,12 @@
             return cursor;
         }
 
+        // Saber si un momento dado cae dentro de la hora de almuerzo (12:00-13:00)
+        function estaEnHoraDeAlmuerzo(fecha = new Date()) {
+            const minutosDelDia = fecha.getHours() * 60 + fecha.getMinutes();
+            return minutosDelDia >= 12 * 60 && minutosDelDia < 13 * 60;
+        }
+
         // Verificar conflicto de disponibilidad + hora de almuerzo (12:00-13:00)
         function verificarConflicto(equipo, inicio, duracion, excludeId = null) {
             const citas = cargarCitas();
@@ -2027,7 +2033,9 @@
                                                     pendiente: { texto: '⏳ Esperando llegada', color: '#92400E', fondo: '#FEF3C7' },
                                                     llegada: { texto: '🏗️ Llegó a la obra', color: '#0891B2', fondo: '#CFFAFE' },
                                                     en_labor: { texto: '🔧 Labor en progreso', color: '#065F46', fondo: '#D1FAE5' },
-                                                    pausada: { texto: '⏸️ Labor pausada', color: '#7C3AED', fondo: '#EDE9FE' },
+                                                    pausada: cita.pausada_por_almuerzo
+                                                        ? { texto: '⏸️ En almuerzo — reanuda a la 1:00pm', color: '#7C3AED', fondo: '#EDE9FE' }
+                                                        : { texto: '⏸️ Labor pausada', color: '#7C3AED', fondo: '#EDE9FE' },
                                                     terminada: { texto: '✅ Labor terminada', color: '#DC2626', fondo: '#FEE2E2' },
                                                     terminada_pendiente: { texto: '⏳ Pendiente de liberación', color: '#D97706', fondo: '#FEF3C7' }
                                                 }[estadoTexto];
@@ -2052,6 +2060,7 @@
                                                             ${(estadoRecepcion === 'llegada' || estadoRecepcion === 'en_labor' || estadoRecepcion === 'pausada') ? `<button onclick="marcarRecepcion('${cita.id}', 'terminada')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #DC2626; color: white; border: none; border-radius: 4px; cursor: pointer;">✅ Terminar</button>` : ''}
                                                             ${estadoRecepcion === 'terminada' && !cita.equipo_liberado ? `<button onclick="liberarEquipo('${cita.id}')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #059669; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">🔓 Liberar Equipo</button>` : ''}
                                                         </div>
+                                                        ${estadoRecepcion === 'pendiente' && estaEnHoraDeAlmuerzo() ? `<div style="margin-top: 0.4rem; padding: 0.5rem 0.7rem; background: #D1FAE5; color: #065F46; border-radius: 4px; font-size: 0.8rem; font-weight: 600;">🍽️ Hora de almuerzo (12:00pm-1:00pm) — el equipo se pausa automáticamente</div>` : ''}
                                                     </div>
                                                 `;
                                             })()}
