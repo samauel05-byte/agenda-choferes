@@ -1917,16 +1917,10 @@
                 const ahora = new Date();
                 const citasEquipo = citas
                     .filter(c => c.equipo === equipo)
-                    .filter(c => {
-                        // Ocultar agendas completadas/terminadas
-                        if (c.completada || c.estado_recepcion === 'terminada') {
-                            return false;
-                        }
-                        // Mantener solo las citas que aún no han terminado (en uso o futuras).
-                        // Las ya finalizadas se ocultan de la tarjeta pero permanecen en la base de datos.
-                        const fin = calcularFinJornada(new Date(c.inicio), c.duracion);
-                        return fin > ahora;
-                    })
+                    // Ocultar agendas completadas/terminadas. Las que ya pasaron su horario
+                    // pero nadie marcó "Terminó su labor" se mantienen visibles (vencidas)
+                    // en vez de desaparecer, para que no queden citas "perdidas" sin cerrar.
+                    .filter(c => !(c.completada || c.estado_recepcion === 'terminada'))
                     .sort((a, b) => new Date(a.inicio) - new Date(b.inicio));
 
                 // Determinar estado actual
@@ -2012,6 +2006,8 @@
                                     const citaInicio = new Date(cita.inicio);
                                     const citaFin = calcularFinJornada(citaInicio, cita.duracion);
                                     const esActual = ahora >= citaInicio && ahora < citaFin;
+                                    const vencida = ahora >= citaFin && (cita.estado_recepcion || 'pendiente') !== 'terminada';
+                                    const hayReservaAplazada = vencida && idx < citasEquipo.length - 1;
                                     return `
                                         <div class="timeline-item ${esActual ? 'en-uso' : 'futuro'}">
                                             📍 <strong>${cita.proyecto}</strong>${cita.area ? ` <span style="color:#6B7280;font-weight:400;font-size:0.85rem;">(${escapeHtml(cita.area)})</span>` : ''}<br>
@@ -2023,6 +2019,11 @@
                                                 return costo !== null ? `<br>💰 ${formatearMoneda(costo)}` : '';
                                             })()}
                                             ${cita.notas ? `<br><span style="display: block; margin-top: 0.4rem; font-size: 0.85rem; color: #374151; background: #F3F4F6; padding: 0.4rem 0.6rem; border-radius: 4px; white-space: pre-wrap;">📝 ${escapeHtml(cita.notas)}</span>` : ''}
+                                            ${vencida ? (() => {
+                                                const minutosVencido = Math.floor((ahora - citaFin) / (1000 * 60));
+                                                return `<div style="margin-top: 0.5rem; padding: 0.5rem 0.7rem; background: #FEE2E2; color: #991B1B; border-radius: 4px; font-size: 0.8rem; font-weight: 700;">⏰ Vencido hace ${minutosVencido}m — falta marcar "Terminó su labor"</div>`;
+                                            })() : ''}
+                                            ${hayReservaAplazada ? `<div style="margin-top: 0.4rem; padding: 0.5rem 0.7rem; background: #FEF3C7; color: #92400E; border-radius: 4px; font-size: 0.8rem; font-weight: 700;">⚠️ Turno vencido — siguiente reserva aplazada hasta marcar terminado</div>` : ''}
                                             ${(() => {
                                                 const estadoRecepcion = cita.estado_recepcion || 'pendiente';
                                                 let estadoTexto = estadoRecepcion;
