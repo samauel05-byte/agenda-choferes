@@ -1242,15 +1242,24 @@
         // para usuarios normales; solo en modo administrador se siguen mostrando
         // (para poder reactivarlos).
         function actualizarDatalistEquipos(proyecto = '') {
-            // Obtener equipos del proyecto seleccionado
-            const equiposDelProyecto = proyecto ? (EQUIPOS_POR_PROYECTO[proyecto] || []) : equiposBase;
-            const equiposActivos = equiposDelProyecto.filter(equipo => modoAdminActivo || !estaFueraDeServicio(equipo));
-
             ['equipo', 'editEquipo'].forEach(id => {
                 const select = document.getElementById(id);
                 if (!select) return;
-                const valorPrevio = select.value;
 
+                // Sin proyecto elegido todavía no se puede elegir equipo: cada
+                // proyecto tiene su propio equipo, así que hay que seleccionar
+                // primero el proyecto.
+                if (!proyecto) {
+                    select.innerHTML = '<option value="">Primero selecciona un proyecto...</option>';
+                    select.disabled = true;
+                    return;
+                }
+
+                const valorPrevio = select.value;
+                const equiposDelProyecto = EQUIPOS_POR_PROYECTO[proyecto] || [];
+                const equiposActivos = equiposDelProyecto.filter(equipo => modoAdminActivo || !estaFueraDeServicio(equipo));
+
+                select.disabled = false;
                 select.innerHTML = '<option value="">Selecciona un equipo...</option>';
                 equiposActivos.forEach(equipo => {
                     const opt = document.createElement('option');
@@ -1720,6 +1729,7 @@
 
             citaForm.reset();
             document.getElementById('areaGroupRow').style.display = 'none';
+            actualizarDatalistEquipos('');
             limpiarErrorEquipo();
             actualizarCostoEstimado();
             verificarDisponibilidadEnVivo();
@@ -2319,6 +2329,7 @@
             document.getElementById('editId').value = cita.id;
             document.getElementById('editNombre').value = cita.nombre || '';
             document.getElementById('editProyecto').value = cita.proyecto || '';
+            actualizarDatalistEquipos(cita.proyecto || '');
             document.getElementById('editEquipo').value = cita.equipo || '';
             document.getElementById('editInicio').value = (cita.inicio || '').slice(0, 16);
             const desgloseEdicion = (cita.duracion_horas !== undefined && cita.duracion_horas !== null)
