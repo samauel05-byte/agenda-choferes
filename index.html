@@ -2512,17 +2512,19 @@
             const tareas = [];
 
             if (tieneLogo) {
-                tareas.push(leerComoBase64(fileLogoInput.files[0]).then(base64Data => {
-                    localStorage.setItem('logoCustom', base64Data);
+                tareas.push(leerComoBase64(fileLogoInput.files[0]).then(async base64Data => {
+                    const { error } = await sb.from('configuracion').upsert({ clave: 'logo', valor: base64Data, activo: true });
+                    if (error) throw error;
                     fileLogoInput.value = '';
                 }));
             }
 
             if (tieneFavicon) {
-                tareas.push(leerComoBase64(fileFaviconInput.files[0]).then(base64Data => {
+                tareas.push(leerComoBase64(fileFaviconInput.files[0]).then(async base64Data => {
+                    const { error } = await sb.from('configuracion').upsert({ clave: 'favicon', valor: base64Data, activo: true });
+                    if (error) throw error;
                     const faviconLink = document.querySelector("link[rel='icon']");
                     if (faviconLink) faviconLink.href = base64Data;
-                    localStorage.setItem('faviconCustom', base64Data);
                     fileFaviconInput.value = '';
                 }));
             }
@@ -2537,7 +2539,7 @@
         }
 
         // Restaurar por defecto
-        function restaurarPorDefecto() {
+        async function restaurarPorDefecto() {
             if (!modoAdminActivo) {
                 mostrarAlerta('🔒 Necesitas estar en modo administrador', 'error');
                 return;
@@ -2547,8 +2549,8 @@
             if (!confirmar) return;
 
             try {
-                localStorage.removeItem('logoCustom');
-                localStorage.removeItem('faviconCustom');
+                const { error } = await sb.from('configuracion').delete().in('clave', ['logo', 'favicon']);
+                if (error) throw error;
                 document.querySelector("link[rel='icon']").href = "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>%F0%9F%9A%9C</text></svg>";
                 mostrarAlerta('✅ Restaurado. Recargando...', 'success');
                 setTimeout(() => location.reload(), 1500);
@@ -2559,21 +2561,24 @@
         }
 
 
-        // Cargar personalizaciones guardadas al iniciar
-        function cargarPersonalizaciones() {
-            const faviconGuardado = localStorage.getItem('faviconCustom');
-            const logoGuardado = localStorage.getItem('logoCustom');
+        // Cargar personalizaciones guardadas (desde la nube, para que se vean igual en todos los dispositivos)
+        async function cargarPersonalizaciones() {
+            try {
+                const { data, error } = await sb
+                    .from('configuracion')
+                    .select('clave, valor')
+                    .in('clave', ['logo', 'favicon'])
+                    .eq('activo', true);
+                if (error) throw error;
 
-            if (faviconGuardado) {
-                try {
+                const faviconGuardado = data?.find(d => d.clave === 'favicon')?.valor;
+                const logoGuardado = data?.find(d => d.clave === 'logo')?.valor;
+
+                if (faviconGuardado) {
                     document.querySelector("link[rel='icon']").href = faviconGuardado;
-                } catch (e) {
-                    console.error('Error cargando favicon personalizado:', e);
                 }
-            }
 
-            if (logoGuardado) {
-                try {
+                if (logoGuardado) {
                     // Buscar y reemplazar logo en el header
                     const logoElements = document.querySelectorAll('.logo-svg');
                     logoElements.forEach(el => {
@@ -2582,15 +2587,15 @@
                         img.className = 'logo-svg';
                         el.replaceWith(img);
                     });
-                } catch (e) {
-                    console.error('Error cargando logo personalizado:', e);
                 }
+            } catch (e) {
+                console.error('Error cargando personalizaciones:', e);
             }
         }
 
         // Inicializar: cargar desde la nube, configurar realtime, y refrescar periódicamente
         (async () => {
-            cargarPersonalizaciones();
+            await cargarPersonalizaciones();
             await cargarProyectosAreasEquipos();
             await recargarCitas();
             await recargarEquipos();
