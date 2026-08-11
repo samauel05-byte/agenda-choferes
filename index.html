@@ -1005,6 +1005,33 @@
         </div>
     </div>
 
+    <div id="modalPausa" class="modal-overlay" style="display: none;">
+        <div class="modal-box">
+            <h2 class="section-title">⏸️ Pausar Equipo</h2>
+            <input type="hidden" id="pausaId">
+            <div class="form-group">
+                <label for="pausaMotivo">Motivo *</label>
+                <select id="pausaMotivo" required style="width: 100%; padding: 0.7rem; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 1rem;">
+                    <option value="">Selecciona un motivo...</option>
+                    <option value="Lluvia">🌧️ Lluvia</option>
+                    <option value="Avería mecánica">🔧 Avería mecánica</option>
+                    <option value="Pinchazo / falta de aire">💨 Pinchazo / falta de aire</option>
+                    <option value="Espera de material o instrucciones">⏱️ Espera de material o instrucciones</option>
+                    <option value="Almuerzo / descanso">🍽️ Almuerzo / descanso</option>
+                    <option value="Otro">❓ Otro</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="pausaNota">Nota (opcional)</label>
+                <textarea id="pausaNota" placeholder="Detalles adicionales"></textarea>
+            </div>
+            <div style="display: flex; gap: 0.8rem; margin-top: 1rem;">
+                <button type="button" onclick="confirmarPausa()">⏸️ Registrar Pausa</button>
+                <button type="button" onclick="cerrarModalPausa()" style="background: #6B7280;">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
     <footer>
         <p>&copy; 2026 Grupo Dupla | Constructora Dupla • Porto Valencia</p>
         <p style="font-size: 0.85rem; margin-top: 0.5rem;">Programador de Logística de Equipos Pesados • Version <a href="https://www.instagram.com/sam._.x05?igsh=ZW1tYjV2cWhvYTAx" target="_blank" rel="noopener noreferrer" style="color: inherit;">SamKill 1.5</a></p>
@@ -1460,7 +1487,7 @@
 
         // Marca si el equipo fue recibido o no. Solo la persona que aparece como
         // solicitante en esa reserva puede confirmarlo (se verifica escribiendo el nombre).
-        async function marcarRecepcion(id, valor) {
+        async function marcarRecepcion(id, valor, extra = {}) {
             const cita = citasCache.find(c => c.id === id);
             if (!cita) return;
 
@@ -1498,6 +1525,8 @@
                 }
             } else if (valor === 'pausada') {
                 updateData.hora_pausa = ahora.toISOString();
+                if (extra.motivo_pausa) updateData.motivo_pausa = extra.motivo_pausa;
+                updateData.nota_pausa = extra.nota_pausa || null;
             } else if (valor === 'terminada') {
                 updateData.hora_fin_real = ahora.toISOString();
 
@@ -1546,7 +1575,7 @@
             } else if (valor === 'en_labor') {
                 mensaje += 'Labor iniciada';
             } else if (valor === 'pausada') {
-                mensaje += 'Labor pausada';
+                mensaje += extra.motivo_pausa ? `Labor pausada — Motivo: ${extra.motivo_pausa}` : 'Labor pausada';
             } else if (valor === 'terminada') {
                 const citaFinal = citasCache.find(c => c.id === id);
                 const minutosExtra = citaFinal?.minutos_extra || 0;
@@ -2085,7 +2114,7 @@
                                                     en_labor: { texto: '🔧 Labor en progreso', color: '#065F46', fondo: '#D1FAE5' },
                                                     pausada: cita.pausada_por_almuerzo
                                                         ? { texto: '⏸️ En almuerzo — reanuda a la 1:00pm', color: '#7C3AED', fondo: '#EDE9FE' }
-                                                        : { texto: '⏸️ Labor pausada', color: '#7C3AED', fondo: '#EDE9FE' },
+                                                        : { texto: cita.motivo_pausa ? `⏸️ Pausado — ${escapeHtml(cita.motivo_pausa)}` : '⏸️ Labor pausada', color: '#7C3AED', fondo: '#EDE9FE' },
                                                     terminada: { texto: '✅ Labor terminada', color: '#DC2626', fondo: '#FEE2E2' },
                                                     terminada_pendiente: { texto: '⏳ Pendiente de liberación', color: '#D97706', fondo: '#FEF3C7' },
                                                     no_recibido: { texto: '❌ No Llegó', color: '#991B1B', fondo: '#FEE2E2' },
@@ -2099,7 +2128,8 @@
                                                                 <strong>Timeline:</strong><br>
                                                                 ${cita.hora_llegada_real ? `📍 Llegó: ${new Date(cita.hora_llegada_real).toLocaleTimeString('es-DO', {hour: '2-digit', minute: '2-digit', hour12: true})}<br>` : ''}
                                                                 ${cita.hora_inicio_labor ? `🔧 Inicio: ${new Date(cita.hora_inicio_labor).toLocaleTimeString('es-DO', {hour: '2-digit', minute: '2-digit', hour12: true})}<br>` : ''}
-                                                                ${cita.hora_pausa ? `⏸️ Pausa: ${new Date(cita.hora_pausa).toLocaleTimeString('es-DO', {hour: '2-digit', minute: '2-digit', hour12: true})}<br>` : ''}
+                                                                ${cita.hora_pausa ? `⏸️ Pausa: ${new Date(cita.hora_pausa).toLocaleTimeString('es-DO', {hour: '2-digit', minute: '2-digit', hour12: true})}${cita.motivo_pausa ? ` (${escapeHtml(cita.motivo_pausa)})` : ''}<br>` : ''}
+                                                                ${cita.nota_pausa ? `📝 Nota de pausa: ${escapeHtml(cita.nota_pausa)}<br>` : ''}
                                                                 ${cita.hora_reanudacion ? `▶️ Reanudó: ${new Date(cita.hora_reanudacion).toLocaleTimeString('es-DO', {hour: '2-digit', minute: '2-digit', hour12: true})}<br>` : ''}
                                                                 ${cita.hora_fin_real ? `✅ Término: ${new Date(cita.hora_fin_real).toLocaleTimeString('es-DO', {hour: '2-digit', minute: '2-digit', hour12: true})}` : ''}
                                                             </div>
@@ -2110,7 +2140,7 @@
                                                             ${estadoRecepcion === 'pendiente' ? `<button onclick="marcarRecepcion('${cita.id}', 'pendiente_entrega')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #C2410C; color: white; border: none; border-radius: 4px; cursor: pointer;">📦 Pendiente de Entrega</button>` : ''}
                                                             ${estadoRecepcion === 'pendiente_entrega' ? `<button onclick="marcarRecepcion('${cita.id}', 'llegada')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #0891B2; color: white; border: none; border-radius: 4px; cursor: pointer;">🏗️ Ya se entregó — Iniciar</button>` : ''}
                                                             ${(estadoRecepcion === 'llegada' || estadoRecepcion === 'pausada') ? `<button onclick="marcarRecepcion('${cita.id}', 'en_labor')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #10B981; color: white; border: none; border-radius: 4px; cursor: pointer;">🔧 Iniciar</button>` : ''}
-                                                            ${estadoRecepcion === 'en_labor' ? `<button onclick="marcarRecepcion('${cita.id}', 'pausada')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #7C3AED; color: white; border: none; border-radius: 4px; cursor: pointer;">⏸️ Pausar</button>` : ''}
+                                                            ${estadoRecepcion === 'en_labor' ? `<button onclick="abrirModalPausa('${cita.id}')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #7C3AED; color: white; border: none; border-radius: 4px; cursor: pointer;">⏸️ Pausar</button>` : ''}
                                                             ${estadoRecepcion === 'pausada' ? `<button onclick="marcarRecepcion('${cita.id}', 'en_labor')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #3B82F6; color: white; border: none; border-radius: 4px; cursor: pointer;">▶️ Reanudar</button>` : ''}
                                                             ${(estadoRecepcion === 'llegada' || estadoRecepcion === 'en_labor' || estadoRecepcion === 'pausada') ? `<button onclick="marcarRecepcion('${cita.id}', 'terminada')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #DC2626; color: white; border: none; border-radius: 4px; cursor: pointer;">✅ Terminar</button>` : ''}
                                                             ${estadoRecepcion === 'terminada' && !cita.equipo_liberado ? `<button onclick="liberarEquipo('${cita.id}')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #059669; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">🔓 Liberar Equipo</button>` : ''}
@@ -2424,6 +2454,33 @@
         // Cerrar modal de edición
         function cerrarModalEdicion() {
             document.getElementById('modalEdicion').style.display = 'none';
+        }
+
+        // Abrir modal para elegir el motivo antes de pausar un equipo
+        function abrirModalPausa(id) {
+            document.getElementById('pausaId').value = id;
+            document.getElementById('pausaMotivo').value = '';
+            document.getElementById('pausaNota').value = '';
+            document.getElementById('modalPausa').style.display = 'flex';
+        }
+
+        function cerrarModalPausa() {
+            document.getElementById('modalPausa').style.display = 'none';
+        }
+
+        // Confirmar la pausa con el motivo elegido en el modal
+        async function confirmarPausa() {
+            const id = document.getElementById('pausaId').value;
+            const motivo = document.getElementById('pausaMotivo').value;
+            const nota = document.getElementById('pausaNota').value.trim();
+
+            if (!motivo) {
+                mostrarAlerta('⚠️ Selecciona un motivo de la pausa', 'error');
+                return;
+            }
+
+            cerrarModalPausa();
+            await marcarRecepcion(id, 'pausada', { motivo_pausa: motivo, nota_pausa: nota });
         }
 
         // Guardar cambios de una asignación editada (solo en modo admin)
