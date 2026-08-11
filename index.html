@@ -1571,7 +1571,7 @@
 
             let mensaje = '✅ ';
             if (valor === 'llegada') {
-                mensaje += 'Equipo llegó. Hora de inicio registrada: ' + ahora.toLocaleTimeString('es-DO');
+                mensaje += 'Equipo llegó. Hora de inicio registrada: ' + ahora.toLocaleTimeString('es-DO', { timeZone: 'America/Santo_Domingo' });
             } else if (valor === 'en_labor') {
                 mensaje += 'Labor iniciada';
             } else if (valor === 'pausada') {
@@ -1624,16 +1624,16 @@
             const citasDelEquipo = citas.filter(c => c.equipo === equipo && c.estado_recepcion === 'pendiente');
 
             for (let citaConflictiva of citasDelEquipo) {
-                const citaInicio = new Date(citaConflictiva.inicio);
+                const citaInicio = fechaRD(citaConflictiva.inicio);
 
                 // Si la nueva fin es después del inicio de la siguiente cita, moverla
                 if (nuevaFechaFin > citaInicio) {
                     const diferencia = nuevaFechaFin - citaInicio;
                     const nuevoInicio = new Date(citaInicio.getTime() + diferencia);
 
-                    await sb.from('reservas').update({ inicio: nuevoInicio.toISOString() }).eq('id', citaConflictiva.id);
+                    await sb.from('reservas').update({ inicio: formatoInicioRD(nuevoInicio) }).eq('id', citaConflictiva.id);
 
-                    mostrarAlerta(`📅 Agenda de "${citaConflictiva.proyecto}" movida a ${nuevoInicio.toLocaleString('es-DO')} (ajuste automático)`, 'info');
+                    mostrarAlerta(`📅 Agenda de "${citaConflictiva.proyecto}" movida a ${nuevoInicio.toLocaleString('es-DO', { timeZone: 'America/Santo_Domingo' })} (ajuste automático)`, 'info');
                 }
             }
         }
@@ -1643,7 +1643,7 @@
         // algunos dispositivos corrompen los emojis al pasar por la URL de wa.me
         // y aparecen como símbolos de rombo/interrogación.
         function enviarWhatsAppAsignacion(cita) {
-            const fechaInicio = new Date(cita.inicio).toLocaleString('es-DO', {
+            const fechaInicio = fechaRD(cita.inicio).toLocaleString('es-DO', {
                 weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
                 hour: '2-digit', minute: '2-digit'
             });
@@ -1769,7 +1769,7 @@
                 duracion_minutos: parseFloat(duracionMinutosInput) || 0,
                 duracion_segundos: parseFloat(duracionSegundosInput) || 0,
                 notas: notas,
-                fecha_agendado: new Date().toLocaleDateString('es-DO'),
+                fecha_agendado: new Date().toLocaleDateString('es-DO', { timeZone: 'America/Santo_Domingo' }),
                 estado: 'Activa',
                 costo: calcularCosto(equipo, duracion)
             };
@@ -1805,6 +1805,71 @@
             setTimeout(() => enviarWhatsAppAsignacion(cita), 400);
         });
 
+        // ===== Hora real de República Dominicana (UTC-4, sin horario de verano) =====
+        // Todo el proyecto tiene que operar siempre con la hora real de RD, sin
+        // importar en qué zona horaria esté configurado el dispositivo que abre
+        // la página (un admin viendo la app desde otro país, un navegador con el
+        // reloj mal configurado, etc.). Estas funciones lo garantizan: en vez de
+        // confiar en getHours()/getDay()/new Date(texto) del navegador (que usan
+        // la zona horaria LOCAL del dispositivo), siempre anclan o leen la fecha
+        // en la zona horaria de RD explícitamente.
+        const ZONA_HORARIA_RD = 'America/Santo_Domingo';
+
+        // Componentes de calendario/reloj (año, mes, día, hora, minuto, día de la
+        // semana con 0=domingo) de una fecha, según la hora real de RD.
+        function componentesRD(fecha) {
+            const partes = new Intl.DateTimeFormat('en-US', {
+                timeZone: ZONA_HORARIA_RD,
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', second: '2-digit',
+                hour12: false, weekday: 'short'
+            }).formatToParts(fecha);
+            const obj = {};
+            partes.forEach(p => { if (p.type !== 'literal') obj[p.type] = p.value; });
+            const diasSemana = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+            return {
+                year: Number(obj.year),
+                month: Number(obj.month),
+                day: Number(obj.day),
+                hour: obj.hour === '24' ? 0 : Number(obj.hour),
+                minute: Number(obj.minute),
+                second: Number(obj.second),
+                weekday: diasSemana[obj.weekday]
+            };
+        }
+
+        // Los campos de fecha guardados como texto local sin zona horaria (ej.
+        // "inicio", que viene de un <input type="datetime-local">) siempre
+        // representan la hora de RD. Si se interpretaran con `new Date(...)` a
+        // secas, el resultado dependería de la zona horaria del dispositivo que
+        // los lea. Esta función siempre los ancla a la hora real de RD (UTC-4).
+        function fechaRD(fechaStr) {
+            if (fechaStr instanceof Date) return new Date(fechaStr.getTime());
+            if (!fechaStr) return new Date(NaN);
+            // Ya trae zona horaria explícita (Z o +/-HH:MM) -> se interpreta tal cual
+            if (/[zZ]|[+-]\d{2}:?\d{2}$/.test(fechaStr)) return new Date(fechaStr);
+            return new Date(fechaStr + '-04:00');
+        }
+
+        // Medianoche (00:00) en RD del día de "fecha", opcionalmente sumando días
+        // completos. República Dominicana no tiene horario de verano, así que
+        // sumar/restar días completos en milisegundos siempre cae en la
+        // medianoche correcta.
+        function fechaMedianocheRD(fecha, sumarDias = 0) {
+            const { year, month, day } = componentesRD(fecha);
+            const pad = (n) => String(n).padStart(2, '0');
+            const base = fechaRD(`${year}-${pad(month)}-${pad(day)}T00:00:00`);
+            return sumarDias === 0 ? base : new Date(base.getTime() + sumarDias * 24 * 60 * 60 * 1000);
+        }
+
+        // Formatea una fecha como texto local "YYYY-MM-DDTHH:MM" en hora de RD,
+        // el mismo formato que guarda el campo "inicio" al crear una reserva.
+        function formatoInicioRD(fecha) {
+            const { year, month, day, hour, minute } = componentesRD(fecha);
+            const pad = (n) => String(n).padStart(2, '0');
+            return `${year}-${pad(month)}-${pad(day)}T${pad(hour)}:${pad(minute)}`;
+        }
+
         // ===== Jornada laboral =====
         // Lunes a viernes: 8:30am - 5:00pm (8.5h) | Sábado: 8:30am - 6:00pm (9.5h) | Domingo: 8:30am - 1:00pm (4.5h).
         // La "duración" de una asignación se cuenta en horas de jornada laboral, no en horas de reloj corridas:
@@ -1820,34 +1885,32 @@
         };
 
         function horaDecimalADate(fechaBase, horaDecimal) {
-            const d = new Date(fechaBase);
+            const { year, month, day } = componentesRD(fechaBase);
             const horas = Math.floor(horaDecimal);
             const minutos = Math.round((horaDecimal - horas) * 60);
-            d.setHours(horas, minutos, 0, 0);
-            return d;
+            const pad = (n) => String(n).padStart(2, '0');
+            return fechaRD(`${year}-${pad(month)}-${pad(day)}T${pad(horas)}:${pad(minutos)}:00`);
         }
 
         // Devuelve el inicio de la próxima jornada laboral disponible
         function siguienteInicioJornada(fecha) {
-            let d = new Date(fecha);
-            d.setDate(d.getDate() + 1);
-            d.setHours(0, 0, 0, 0);
-            while (!JORNADA_LABORAL[d.getDay()]) {
-                d.setDate(d.getDate() + 1);
+            let d = fechaMedianocheRD(fecha, 1);
+            while (!JORNADA_LABORAL[componentesRD(d).weekday]) {
+                d = fechaMedianocheRD(d, 1);
             }
-            const ventana = JORNADA_LABORAL[d.getDay()];
+            const ventana = JORNADA_LABORAL[componentesRD(d).weekday];
             return horaDecimalADate(d, ventana[0]);
         }
 
         // Calcula la fecha/hora real de fin de una asignación, contando solo horas dentro
         // de la jornada laboral (Lun-Vie 8:30am-5pm, Sáb 8:30am-6pm, Dom 8:30am-1pm).
         function calcularFinJornada(inicio, duracionHoras) {
-            let cursor = new Date(inicio);
+            let cursor = fechaRD(inicio);
             let restante = Number(duracionHoras) || 0;
             if (restante <= 0) return cursor;
 
             while (restante > 0) {
-                const ventana = JORNADA_LABORAL[cursor.getDay()];
+                const ventana = JORNADA_LABORAL[componentesRD(cursor).weekday];
                 if (!ventana) {
                     cursor = siguienteInicioJornada(cursor);
                     continue;
@@ -1874,23 +1937,22 @@
             return cursor;
         }
 
-        // Saber si un momento dado cae dentro de la hora de almuerzo (12:00-13:00)
+        // Saber si un momento dado cae dentro de la hora de almuerzo (12:00-13:00, hora de RD)
         function estaEnHoraDeAlmuerzo(fecha = new Date()) {
-            const minutosDelDia = fecha.getHours() * 60 + fecha.getMinutes();
+            const { hour, minute } = componentesRD(fecha);
+            const minutosDelDia = hour * 60 + minute;
             return minutosDelDia >= 12 * 60 && minutosDelDia < 13 * 60;
         }
 
         // Verificar conflicto de disponibilidad + hora de almuerzo (12:00-13:00)
         function verificarConflicto(equipo, inicio, duracion, excludeId = null) {
             const citas = cargarCitas();
-            const fechaInicio = new Date(inicio);
+            const fechaInicio = fechaRD(inicio);
             const fechaFin = calcularFinJornada(fechaInicio, duracion);
 
-            // Verificar si interfiere con hora de almuerzo (12:00-13:00)
-            const horaAlmuerzoInicio = new Date(fechaInicio);
-            horaAlmuerzoInicio.setHours(12, 0, 0, 0);
-            const horaAlmuerzoFin = new Date(fechaInicio);
-            horaAlmuerzoFin.setHours(13, 0, 0, 0);
+            // Verificar si interfiere con hora de almuerzo (12:00-13:00, hora de RD)
+            const horaAlmuerzoInicio = horaDecimalADate(fechaInicio, 12);
+            const horaAlmuerzoFin = horaDecimalADate(fechaInicio, 13);
 
             if (fechaInicio < horaAlmuerzoFin && fechaFin > horaAlmuerzoInicio) {
                 // ❌ BLOQUEAR: No permitir reservas que toquen hora de almuerzo
@@ -1900,13 +1962,13 @@
             for (let cita of citas) {
                 if (excludeId && cita.id === excludeId) continue;
                 if (cita.equipo === equipo) {
-                    const citaInicio = new Date(cita.inicio);
+                    const citaInicio = fechaRD(cita.inicio);
                     const citaFin = calcularFinJornada(citaInicio, cita.duracion);
 
                     // Verificar si hay solapamiento
                     if (fechaInicio < citaFin && fechaFin > citaInicio) {
-                        const inicioFormato = citaInicio.toLocaleString('es-DO');
-                        const finFormato = citaFin.toLocaleString('es-DO');
+                        const inicioFormato = citaInicio.toLocaleString('es-DO', { timeZone: 'America/Santo_Domingo' });
+                        const finFormato = citaFin.toLocaleString('es-DO', { timeZone: 'America/Santo_Domingo' });
                         return `El equipo "${equipo}" ya está reservado desde ${inicioFormato} hasta ${finFormato} (Proyecto: ${cita.proyecto})`;
                     }
                 }
@@ -1965,7 +2027,7 @@
             // asignación, el equipo desaparece del tablero automáticamente.
             const ahoraDashboard = new Date();
             const citasActivas = citas.filter(c => {
-                const fin = calcularFinJornada(new Date(c.inicio), c.duracion);
+                const fin = calcularFinJornada(fechaRD(c.inicio), c.duracion);
                 if (fin > ahoraDashboard) return true;
                 // Aunque ya pasó su horario, si quedó "colgada" sin cerrar (llegó pero
                 // nadie marcó terminado, o está pendiente de entrega) el equipo se
@@ -1999,14 +2061,14 @@
                     // nadie marcó "Terminó su labor" se mantienen visibles (vencidas) en
                     // vez de desaparecer, para que no queden citas "perdidas" sin cerrar.
                     .filter(c => !(c.completada || c.estado_recepcion === 'terminada' || c.estado_recepcion === 'no_recibido'))
-                    .sort((a, b) => new Date(a.inicio) - new Date(b.inicio));
+                    .sort((a, b) => fechaRD(a.inicio) - fechaRD(b.inicio));
 
                 // Determinar estado actual
                 let estadoActual = 'Disponible';
                 let tiempoRestante = '';
 
                 citasEquipo.forEach(cita => {
-                    const citaInicio = new Date(cita.inicio);
+                    const citaInicio = fechaRD(cita.inicio);
                     const citaFin = calcularFinJornada(citaInicio, cita.duracion);
 
                     if (ahora >= citaInicio && ahora < citaFin) {
@@ -2081,7 +2143,7 @@
                             <div class="timeline">
                                 <strong style="font-size: 0.9rem;">Próximas citas (${citasEquipo.length}):</strong>
                                 ${citasEquipo.map((cita, idx) => {
-                                    const citaInicio = new Date(cita.inicio);
+                                    const citaInicio = fechaRD(cita.inicio);
                                     const citaFin = calcularFinJornada(citaInicio, cita.duracion);
                                     const esActual = ahora >= citaInicio && ahora < citaFin;
                                     const vencida = ahora >= citaFin && !['terminada', 'pendiente_entrega'].includes(cita.estado_recepcion || 'pendiente');
@@ -2089,7 +2151,7 @@
                                     return `
                                         <div class="timeline-item ${esActual ? 'en-uso' : 'futuro'}">
                                             📍 <strong>${cita.proyecto}</strong>${cita.area ? ` <span style="color:#6B7280;font-weight:400;font-size:0.85rem;">(${escapeHtml(cita.area)})</span>` : ''}<br>
-                                            <small>${citaInicio.toLocaleString('es-DO')}</small><br>
+                                            <small>${citaInicio.toLocaleString('es-DO', { timeZone: 'America/Santo_Domingo' })}</small><br>
                                             ⏱️ Duración: ${formatearDuracionCita(cita)}<br>
                                             👤 ${cita.nombre}
                                             ${(() => {
@@ -2196,7 +2258,9 @@
 
             const filas = completadas
                 .filter(c => {
-                    const citaFecha = new Date(c.inicio).toISOString().split('T')[0];
+                    const { year, month, day } = componentesRD(fechaRD(c.inicio));
+                    const pad = (n) => String(n).padStart(2, '0');
+                    const citaFecha = `${year}-${pad(month)}-${pad(day)}`;
                     if (citaFecha !== fechaSeleccionada) return false;
                     if (equipoFiltro && c.equipo !== equipoFiltro) return false;
                     return true;
@@ -2223,7 +2287,7 @@
                                 ${costoExtra > 0 ? `$${formatearMoneda(costoExtra)}` : '—'}
                             </td>
                             <td style="padding: 0.75rem; text-align: right; font-weight: 600;">$${formatearMoneda(costoTotal)}</td>
-                            <td style="padding: 0.75rem;">${new Date(c.inicio).toLocaleDateString('es-DO')}</td>
+                            <td style="padding: 0.75rem;">${fechaRD(c.inicio).toLocaleDateString('es-DO', { timeZone: 'America/Santo_Domingo' })}</td>
                         </tr>
                     `;
                 })
@@ -2275,16 +2339,16 @@
             const csvContent = 'data:text/csv;charset=utf-8,' + csv.join('\n');
             const link = document.createElement('a');
             link.setAttribute('href', encodeURI(csvContent));
-            link.setAttribute('download', `reporteria_${new Date().toISOString().split('T')[0]}.csv`);
+            link.setAttribute('download', `reporteria_${formatoInicioRD(new Date()).split('T')[0]}.csv`);
             link.click();
         }
 
         // Monitorear hora de almuerzo (12:00-13:00) y pausar/reanudar automáticamente
         async function verificarHoraAlmuerzo() {
             const ahora = new Date();
-            const hora = ahora.getHours();
-            const esHoraAlmuerzo = hora === 12; // Entre 12:00-12:59
-            const despuesAlmuerzo = hora === 13; // A las 13:00+
+            const hora = componentesRD(ahora).hour;
+            const esHoraAlmuerzo = hora === 12; // Entre 12:00-12:59 (hora de RD)
+            const despuesAlmuerzo = hora === 13; // A las 13:00+ (hora de RD)
 
             if (esHoraAlmuerzo) {
                 const citas = cargarCitas();
@@ -2338,7 +2402,7 @@
             const vencidaSinLlegar = citas.find(c => {
                 const estado = c.estado_recepcion || 'pendiente';
                 if (estado !== 'pendiente') return false;
-                const fin = calcularFinJornada(new Date(c.inicio), c.duracion);
+                const fin = calcularFinJornada(fechaRD(c.inicio), c.duracion);
                 return fin <= ahora;
             });
 
@@ -2404,7 +2468,7 @@
 
             const cita = citasCache.find(c => c.id === id);
             if (!cita) return;
-            const confirmar = confirm(`¿Eliminar asignación de "${cita.equipo}" en ${new Date(cita.inicio).toLocaleString('es-DO')}?`);
+            const confirmar = confirm(`¿Eliminar asignación de "${cita.equipo}" en ${fechaRD(cita.inicio).toLocaleString('es-DO', { timeZone: 'America/Santo_Domingo' })}?`);
 
             if (confirmar) {
                 const { error } = await sb.rpc('admin_eliminar_reserva', {
@@ -2554,7 +2618,7 @@
         function descargarRespaldoCSV(citas) {
             const headers = ['Proyecto', 'Área', 'Equipo', 'Capataz', 'Fecha Inicio', 'Duración', 'Notas'];
             const rows = citas.map(cita => {
-                const fecha = new Date(cita.inicio).toLocaleString('es-DO');
+                const fecha = fechaRD(cita.inicio).toLocaleString('es-DO', { timeZone: 'America/Santo_Domingo' });
                 return [
                     cita.proyecto,
                     cita.area || '',
@@ -2574,7 +2638,7 @@
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
             const url = URL.createObjectURL(blob);
-            const ahora = new Date().toLocaleDateString('es-DO').replace(/\//g, '-');
+            const ahora = new Date().toLocaleDateString('es-DO', { timeZone: 'America/Santo_Domingo' }).replace(/\//g, '-');
             link.setAttribute('href', url);
             link.setAttribute('download', `Respaldo_Completo_${ahora}.csv`);
             link.style.visibility = 'hidden';
