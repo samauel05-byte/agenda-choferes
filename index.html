@@ -818,6 +818,9 @@
                 🟢 Disponible | 🟡 Pendiente de Llegada (ya empezó su horario pero nadie marcó llegada) | 🟠 En Uso | ❌ No Llegó (equipo no recepcionado)<br>
                 <span style="font-size: 0.9rem; color: #9CA3AF;">Los equipos 🔧 Fuera de Servicio se ocultan aquí y del formulario de reserva; solo el administrador los ve para poder reactivarlos.</span>
             </p>
+            <div id="btnAgregarEquipoContainer" style="display: none; margin-bottom: 1rem;">
+                <button type="button" onclick="abrirModalNuevoEquipo()" style="padding: 0.6rem 1rem; font-size: 0.9rem; background: #059669; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">➕ Agregar Equipo Nuevo</button>
+            </div>
             <div id="dashboardEquipos" class="calendar-grid">
                 <!-- Se llena automáticamente con JavaScript -->
             </div>
@@ -1046,6 +1049,24 @@
             <div style="display: flex; gap: 0.8rem; margin-top: 1rem;">
                 <button type="button" onclick="confirmarMoverEquipo()">🔀 Mover Equipo</button>
                 <button type="button" onclick="cerrarModalMoverEquipo()" style="background: #6B7280;">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalNuevoEquipo" class="modal-overlay" style="display: none;">
+        <div class="modal-box">
+            <h2 class="section-title">➕ Agregar Equipo Nuevo</h2>
+            <div class="form-group">
+                <label for="nuevoEquipoFicha">Ficha de equipo *</label>
+                <input type="text" id="nuevoEquipoFicha" placeholder="Ej: GDA-PE-60">
+            </div>
+            <div class="form-group">
+                <label for="nuevoEquipoTipo">Equipo *</label>
+                <input type="text" id="nuevoEquipoTipo" placeholder="Ej: Minicargador">
+            </div>
+            <div style="display: flex; gap: 0.8rem; margin-top: 1rem;">
+                <button type="button" onclick="confirmarNuevoEquipo()">➕ Agregar Equipo</button>
+                <button type="button" onclick="cerrarModalNuevoEquipo()" style="background: #6B7280;">Cancelar</button>
             </div>
         </div>
     </div>
@@ -1455,6 +1476,52 @@
             await recargarEquipos();
             actualizarDashboard();
             mostrarAlerta(`🔀 "${equipo}" movido a "${nuevoProyecto}"`, 'success');
+        }
+
+        // Abre el modal para agregar un equipo nuevo (solo administrador). El
+        // equipo se crea sin proyecto asignado; luego se le asigna uno con
+        // "🔀 Cambiar de proyecto".
+        function abrirModalNuevoEquipo() {
+            if (!modoAdminActivo) {
+                mostrarAlerta('🔒 Necesitas estar en modo administrador', 'error');
+                return;
+            }
+
+            document.getElementById('nuevoEquipoFicha').value = '';
+            document.getElementById('nuevoEquipoTipo').value = '';
+            document.getElementById('modalNuevoEquipo').style.display = 'flex';
+        }
+
+        function cerrarModalNuevoEquipo() {
+            document.getElementById('modalNuevoEquipo').style.display = 'none';
+        }
+
+        async function confirmarNuevoEquipo() {
+            const ficha = document.getElementById('nuevoEquipoFicha').value.trim();
+            const tipo = document.getElementById('nuevoEquipoTipo').value.trim();
+
+            if (!ficha || !tipo) {
+                mostrarAlerta('⚠️ Completa la ficha de equipo y el equipo', 'error');
+                return;
+            }
+
+            const { error } = await sb.rpc('admin_crear_equipo', {
+                codigo: CODIGO_MAESTRO,
+                p_codigo: ficha,
+                p_tipo: tipo
+            });
+
+            if (error) {
+                console.error('Error creando equipo:', error);
+                mostrarAlerta(`❌ ${error.message.includes('Ya existe') ? 'Ya existe un equipo con esa ficha y tipo' : 'No se pudo agregar el equipo'}`, 'error');
+                return;
+            }
+
+            cerrarModalNuevoEquipo();
+            await cargarProyectosAreasEquipos();
+            await recargarEquipos();
+            actualizarDashboard();
+            mostrarAlerta(`➕ Equipo "${ficha} ${tipo}" agregado. Usa "🔀 Cambiar de proyecto" para asignarlo.`, 'success');
         }
 
         // Carga proyectos, áreas y equipos por proyecto desde Supabase (tablas
@@ -2328,6 +2395,11 @@
             const cardReporteria = document.getElementById('cardReporteria');
             if (cardReporteria) {
                 cardReporteria.style.display = modoAdminActivo ? '' : 'none';
+            }
+
+            const btnAgregarEquipoContainer = document.getElementById('btnAgregarEquipoContainer');
+            if (btnAgregarEquipoContainer) {
+                btnAgregarEquipoContainer.style.display = modoAdminActivo ? '' : 'none';
             }
         }
 
