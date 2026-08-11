@@ -1871,17 +1871,17 @@
         }
 
         // ===== Jornada laboral =====
-        // Lunes a viernes: 8:30am - 5:00pm (8.5h) | Sábado: 8:30am - 6:00pm (9.5h) | Domingo: 8:30am - 1:00pm (4.5h).
+        // Lunes a sábado: 8:00am - 6:00pm (10h) | Domingo: 8:00am - 3:00pm (7h).
         // La "duración" de una asignación se cuenta en horas de jornada laboral, no en horas de reloj corridas:
         // si una asignación no cabe en el resto del día, continúa en la próxima jornada disponible.
         const JORNADA_LABORAL = {
-            0: [8.5, 13],  // Domingo
-            1: [8.5, 17],  // Lunes
-            2: [8.5, 17],  // Martes
-            3: [8.5, 17],  // Miércoles
-            4: [8.5, 17],  // Jueves
-            5: [8.5, 17],  // Viernes
-            6: [8.5, 18]   // Sábado
+            0: [8, 15],  // Domingo
+            1: [8, 18],  // Lunes
+            2: [8, 18],  // Martes
+            3: [8, 18],  // Miércoles
+            4: [8, 18],  // Jueves
+            5: [8, 18],  // Viernes
+            6: [8, 18]   // Sábado
         };
 
         function horaDecimalADate(fechaBase, horaDecimal) {
@@ -1903,7 +1903,7 @@
         }
 
         // Calcula la fecha/hora real de fin de una asignación, contando solo horas dentro
-        // de la jornada laboral (Lun-Vie 8:30am-5pm, Sáb 8:30am-6pm, Dom 8:30am-1pm).
+        // de la jornada laboral (Lun-Sáb 8am-6pm, Dom 8am-3pm).
         function calcularFinJornada(inicio, duracionHoras) {
             let cursor = fechaRD(inicio);
             let restante = Number(duracionHoras) || 0;
@@ -2088,12 +2088,19 @@
                                 : 'Pendiente de llegada';
                         } else {
                             estadoActual = 'En Uso';
-                            const minutosRestantes = Math.ceil((citaFin - ahora) / (1000 * 60));
+                            // Mientras el equipo está pausado, la cuenta regresiva de
+                            // disponibilidad se congela en el momento de la pausa (no
+                            // sigue corriendo en tiempo real hasta que se reanude).
+                            const referenciaTiempo = (recepcion === 'pausada' && cita.hora_pausa)
+                                ? fechaRD(cita.hora_pausa)
+                                : ahora;
+                            const minutosRestantes = Math.ceil((citaFin - referenciaTiempo) / (1000 * 60));
                             const horas = Math.floor(minutosRestantes / 60);
                             const minutos = minutosRestantes % 60;
+                            const prefijo = recepcion === 'pausada' ? '⏸️ Pausado — Tiempo restante' : 'Tiempo restante';
                             tiempoRestante = horas > 0
-                                ? `Tiempo restante: ${horas}h ${minutos}m`
-                                : `Tiempo restante: ${minutos}m`;
+                                ? `${prefijo}: ${horas}h ${minutos}m`
+                                : `${prefijo}: ${minutos}m`;
                         }
                     }
                 });
