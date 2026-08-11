@@ -2188,12 +2188,12 @@
                                                         ${cita.hora_llegada_real || cita.hora_inicio_labor || cita.hora_pausa || cita.hora_reanudacion || cita.hora_fin_real ? `
                                                             <div style="margin-top: 0.4rem; font-size: 0.75rem; color: #6B7280; background: #F9FAFB; padding: 0.4rem 0.6rem; border-radius: 4px; line-height: 1.4;">
                                                                 <strong>Timeline:</strong><br>
-                                                                ${cita.hora_llegada_real ? `📍 Llegó: ${new Date(cita.hora_llegada_real).toLocaleTimeString('es-DO', {hour: '2-digit', minute: '2-digit', hour12: true})}<br>` : ''}
-                                                                ${cita.hora_inicio_labor ? `🔧 Inicio: ${new Date(cita.hora_inicio_labor).toLocaleTimeString('es-DO', {hour: '2-digit', minute: '2-digit', hour12: true})}<br>` : ''}
-                                                                ${cita.hora_pausa ? `⏸️ Pausa: ${new Date(cita.hora_pausa).toLocaleTimeString('es-DO', {hour: '2-digit', minute: '2-digit', hour12: true})}${cita.motivo_pausa ? ` (${escapeHtml(cita.motivo_pausa)})` : ''}<br>` : ''}
+                                                                ${cita.hora_llegada_real ? `📍 Llegó: ${fechaRD(cita.hora_llegada_real).toLocaleTimeString('es-DO', {timeZone: 'America/Santo_Domingo', hour: '2-digit', minute: '2-digit', hour12: true})}<br>` : ''}
+                                                                ${cita.hora_inicio_labor ? `🔧 Inicio: ${fechaRD(cita.hora_inicio_labor).toLocaleTimeString('es-DO', {timeZone: 'America/Santo_Domingo', hour: '2-digit', minute: '2-digit', hour12: true})}<br>` : ''}
+                                                                ${cita.hora_pausa ? `⏸️ Pausa: ${fechaRD(cita.hora_pausa).toLocaleTimeString('es-DO', {timeZone: 'America/Santo_Domingo', hour: '2-digit', minute: '2-digit', hour12: true})}${cita.motivo_pausa ? ` (${escapeHtml(cita.motivo_pausa)})` : ''}<br>` : ''}
                                                                 ${cita.nota_pausa ? `📝 Nota de pausa: ${escapeHtml(cita.nota_pausa)}<br>` : ''}
-                                                                ${cita.hora_reanudacion ? `▶️ Reanudó: ${new Date(cita.hora_reanudacion).toLocaleTimeString('es-DO', {hour: '2-digit', minute: '2-digit', hour12: true})}<br>` : ''}
-                                                                ${cita.hora_fin_real ? `✅ Término: ${new Date(cita.hora_fin_real).toLocaleTimeString('es-DO', {hour: '2-digit', minute: '2-digit', hour12: true})}` : ''}
+                                                                ${cita.hora_reanudacion ? `▶️ Reanudó: ${fechaRD(cita.hora_reanudacion).toLocaleTimeString('es-DO', {timeZone: 'America/Santo_Domingo', hour: '2-digit', minute: '2-digit', hour12: true})}<br>` : ''}
+                                                                ${cita.hora_fin_real ? `✅ Término: ${fechaRD(cita.hora_fin_real).toLocaleTimeString('es-DO', {timeZone: 'America/Santo_Domingo', hour: '2-digit', minute: '2-digit', hour12: true})}` : ''}
                                                             </div>
                                                         ` : ''}
                                                         <div style="margin-top: 0.4rem; display: flex; gap: 0.4rem; flex-wrap: wrap;">
