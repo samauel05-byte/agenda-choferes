@@ -1297,9 +1297,12 @@
         const citaForm = document.getElementById('citaForm');
         const alertBox = document.getElementById('alert');
         
-        // Código maestro (puedes cambiar esto)
-        const CODIGO_MAESTRO = '2024';
+        // El código maestro se verifica en el servidor (función admin_verificar_codigo
+        // en Supabase) para que no quede expuesto en el código fuente. Una vez que el
+        // administrador lo ingresa correctamente, se guarda en memoria (no en el código)
+        // para reutilizarlo en las siguientes acciones administrativas de esta sesión.
         let modoAdminActivo = false;
+        let codigoAdminActual = null;
 
         // Número de WhatsApp del coordinador que recibe el resumen de cada
         // asignación programada, en formato internacional sin "+" ni espacios.
@@ -1402,7 +1405,7 @@
             }
 
             const { error } = await sb.rpc('admin_set_equipo_fuera_servicio', {
-                codigo: CODIGO_MAESTRO,
+                codigo: codigoAdminActual,
                 p_equipo: equipo,
                 p_fuera: !fueraActual
             });
@@ -1460,7 +1463,7 @@
             }
 
             const { error } = await sb.rpc('admin_mover_equipo_proyecto', {
-                codigo: CODIGO_MAESTRO,
+                codigo: codigoAdminActual,
                 p_equipo: equipo,
                 p_proyecto: nuevoProyecto
             });
@@ -1506,7 +1509,7 @@
             }
 
             const { error } = await sb.rpc('admin_crear_equipo', {
-                codigo: CODIGO_MAESTRO,
+                codigo: codigoAdminActual,
                 p_codigo: ficha,
                 p_tipo: tipo
             });
@@ -2590,11 +2593,11 @@
             }
         }
 
-        // Activar modo administrador con código maestro
-        function activarModoAdmin() {
-            console.log('🔐 Intentando activar modo admin...');
+        // Activar modo administrador con código maestro. El código se verifica
+        // en el servidor vía RPC (admin_verificar_codigo) en vez de compararse
+        // contra un valor guardado en el código fuente.
+        async function activarModoAdmin() {
             const codigo = document.getElementById('codigoMaestro').value;
-            console.log('Código ingresado:', codigo, 'Código esperado:', CODIGO_MAESTRO);
             const indicador = document.getElementById('modoAdminIndicador');
             const textoIndicador = document.getElementById('modoAdminTexto');
 
@@ -2603,9 +2606,11 @@
                 return;
             }
 
-            if (codigo === CODIGO_MAESTRO) {
-                console.log('✅ Código correcto!');
+            const { error } = await sb.rpc('admin_verificar_codigo', { codigo });
+
+            if (!error) {
                 modoAdminActivo = true;
+                codigoAdminActual = codigo;
                 document.getElementById('codigoMaestro').value = '';
                 indicador.style.background = '#DCFCE7';
                 indicador.style.borderColor = '#86EFAC';
@@ -2620,6 +2625,7 @@
                 verificarDisponibilidadEnVivo();
             } else {
                 modoAdminActivo = false;
+                codigoAdminActual = null;
                 indicador.style.display = 'none';
                 mostrarAlerta('❌ Código maestro incorrecto', 'error');
                 document.getElementById('codigoMaestro').value = '';
@@ -2639,7 +2645,7 @@
 
             if (confirmar) {
                 const { error } = await sb.rpc('admin_eliminar_reserva', {
-                    codigo: CODIGO_MAESTRO,
+                    codigo: codigoAdminActual,
                     id_reserva: id
                 });
                 if (error) {
@@ -2840,7 +2846,7 @@
 
             // Borrar todas las filas (el filtro cubre todas las reservas)
             const { error } = await sb.rpc('admin_vaciar_reservas', {
-                codigo: CODIGO_MAESTRO
+                codigo: codigoAdminActual
             });
             if (error) {
                 console.error('Error vaciando base:', error);
