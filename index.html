@@ -2627,7 +2627,7 @@
                 modoAdminActivo = false;
                 codigoAdminActual = null;
                 indicador.style.display = 'none';
-                mostrarAlerta('❌ Código maestro incorrecto', 'error');
+                mostrarAlerta(`❌ ${error.message || 'Código maestro incorrecto'}`, 'error');
                 document.getElementById('codigoMaestro').value = '';
             }
         }
