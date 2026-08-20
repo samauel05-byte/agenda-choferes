@@ -2595,7 +2595,10 @@
 
         // Activar modo administrador con código maestro. El código se verifica
         // en el servidor vía RPC (admin_verificar_codigo) en vez de compararse
-        // contra un valor guardado en el código fuente.
+        // contra un valor guardado en el código fuente. La función devuelve
+        // null si el código es válido, o un mensaje de error (texto) si no lo
+        // es — no usa excepciones para esto porque una excepción deshace toda
+        // la transacción, incluido el contador de intentos fallidos.
         async function activarModoAdmin() {
             const codigo = document.getElementById('codigoMaestro').value;
             const indicador = document.getElementById('modoAdminIndicador');
@@ -2606,9 +2609,9 @@
                 return;
             }
 
-            const { error } = await sb.rpc('admin_verificar_codigo', { codigo });
+            const { data: mensajeError, error } = await sb.rpc('admin_verificar_codigo', { codigo });
 
-            if (!error) {
+            if (!error && !mensajeError) {
                 modoAdminActivo = true;
                 codigoAdminActual = codigo;
                 document.getElementById('codigoMaestro').value = '';
@@ -2627,7 +2630,7 @@
                 modoAdminActivo = false;
                 codigoAdminActual = null;
                 indicador.style.display = 'none';
-                mostrarAlerta(`❌ ${error.message || 'Código maestro incorrecto'}`, 'error');
+                mostrarAlerta(`❌ ${mensajeError || error?.message || 'Código maestro incorrecto'}`, 'error');
                 document.getElementById('codigoMaestro').value = '';
             }
         }
