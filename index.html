@@ -1795,7 +1795,34 @@
         // escrito, listo para que la persona solo toque "Enviar". Sin emojis:
         // algunos dispositivos corrompen los emojis al pasar por la URL de wa.me
         // y aparecen como símbolos de rombo/interrogación.
-        function enviarWhatsAppAsignacion(cita) {
+        // Si el navegador bloqueó la apertura automática de WhatsApp (o no se pudo
+        // pre-abrir la pestaña a tiempo), dejamos un aviso fijo en pantalla con un
+        // link real para que la persona lo toque ella misma — para que el aviso al
+        // coordinador nunca se pierda en silencio sin que nadie se entere.
+        function mostrarFallbackWhatsApp(url) {
+            const contenedor = document.createElement('div');
+            contenedor.style.cssText = 'position:fixed; top:70px; left:50%; transform:translateX(-50%); z-index:9999; background:#DC2626; color:white; padding:0.8rem 1.2rem; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.3); max-width:90%; text-align:center; font-size:0.9rem;';
+            contenedor.innerHTML = `⚠️ No se pudo abrir WhatsApp automáticamente.<br><a href="${url}" target="_blank" rel="noopener noreferrer" style="color:white; text-decoration:underline; font-weight:700;">Toca aquí para enviar el aviso al coordinador</a> <span style="cursor:pointer; margin-left:0.6rem;" onclick="this.parentElement.remove()">✕</span>`;
+            document.body.appendChild(contenedor);
+        }
+
+        // Navega la pestaña de WhatsApp ya pre-abierta (para no chocar con el
+        // bloqueador de ventanas emergentes de los navegadores, que rechaza
+        // window.open() si no ocurre de inmediato dentro del gesto del usuario).
+        // Si esa pestaña ya no está disponible, intenta abrir una nueva como
+        // respaldo, y si eso también falla, muestra un link para tocar a mano.
+        function abrirWhatsApp(url, ventanaPreabierta) {
+            if (ventanaPreabierta && !ventanaPreabierta.closed) {
+                ventanaPreabierta.location.href = url;
+                return;
+            }
+            const nueva = window.open(url, '_blank');
+            if (!nueva) {
+                mostrarFallbackWhatsApp(url);
+            }
+        }
+
+        function enviarWhatsAppAsignacion(cita, ventanaPreabierta) {
             const fechaInicio = fechaRD(cita.inicio).toLocaleString('es-DO', {
                 weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
                 hour: '2-digit', minute: '2-digit'
@@ -1827,7 +1854,7 @@
             ];
 
             const mensaje = encodeURIComponent(lineas.join('\n'));
-            window.open(`https://wa.me/${WHATSAPP_COORDINADOR}?text=${mensaje}`, '_blank');
+            abrirWhatsApp(`https://wa.me/${WHATSAPP_COORDINADOR}?text=${mensaje}`, ventanaPreabierta);
         }
 
         // Mostrar alerta
@@ -1873,6 +1900,23 @@
         // Agregar cita
         citaForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+
+            // Pre-abrimos una pestaña en blanco para WhatsApp AQUÍ MISMO, dentro
+            // del gesto de clic/enter del usuario, antes de cualquier await. Los
+            // navegadores bloquean window.open() si se llama después de esperar
+            // operaciones async (o dentro de un setTimeout, como se hacía antes) —
+            // eso hacía que el aviso al coordinador se perdiera en silencio, sin
+            // error visible para nadie. Si al final no hace falta (falla una
+            // validación), se cierra sola sin que el usuario la note.
+            let ventanaWhatsApp = null;
+            try {
+                ventanaWhatsApp = window.open('', '_blank');
+            } catch (err) {
+                ventanaWhatsApp = null;
+            }
+            let necesitaWhatsApp = false;
+
+            try {
 
             const nombre = document.getElementById('nombre').value.trim();
             const proyecto = document.getElementById('proyecto').value.trim();
@@ -1940,6 +1984,8 @@
                 return;
             }
 
+            necesitaWhatsApp = true;
+
             await recargarCitas();
             actualizarDashboard();
 
@@ -1955,7 +2001,15 @@
             // vio la confirmación en pantalla. Si se abre antes, en el celular el
             // salto a WhatsApp puede pasar por encima de la asignación y parecer
             // que "no se guardó" cuando en realidad sí se guardó.
-            setTimeout(() => enviarWhatsAppAsignacion(cita), 400);
+            setTimeout(() => {
+                enviarWhatsAppAsignacion(cita, ventanaWhatsApp);
+            }, 400);
+
+            } finally {
+                if (!necesitaWhatsApp && ventanaWhatsApp && !ventanaWhatsApp.closed) {
+                    ventanaWhatsApp.close();
+                }
+            }
         });
 
         // ===== Hora real de República Dominicana (UTC-4, sin horario de verano) =====
