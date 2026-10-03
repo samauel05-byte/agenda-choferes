@@ -1113,6 +1113,15 @@
             return tarifa * duracion;
         }
 
+        // Equipos "pesados" (minicargadores y telehandlers): sujetos a un máximo
+        // de 16h por solicitud, para que no acaparen el equipo y otros proyectos
+        // tengan oportunidad de usarlo. Los minicargadores además requieren un
+        // margen de 2 días entre solicitudes del mismo proyecto (los telehandler
+        // no tienen ese problema de disponibilidad).
+        function esEquipoPesado(equipo) {
+            return equipo.includes('Minicargador') || equipo.includes('Telehandler');
+        }
+
         function formatearMoneda(valor) {
             return 'RD$ ' + Number(valor).toLocaleString('es-DO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
@@ -1947,6 +1956,40 @@
 
             // Traer lo más reciente de la nube antes de validar conflictos
             await recargarCitas();
+
+            // Regla de equipos pesados (minicargador/telehandler): cada solicitud
+            // puede ser de hasta 16h como máximo, para que el equipo tenga rejuego
+            // entre proyectos.
+            if (esEquipoPesado(equipo)) {
+                if (duracion > 16) {
+                    mostrarAlerta(`❌ "${equipo}" es un equipo pesado: cada solicitud no puede pasar de 16 horas, para que haya rejuego con otros proyectos.`, 'error');
+                    return;
+                }
+
+                // Los 2 días de margen entre solicitudes del mismo proyecto solo
+                // aplican a Minicargadores — los Telehandler no tienen ese
+                // problema de disponibilidad entre proyectos.
+                if (!equipo.includes('Telehandler')) {
+                    const nuevoInicio = fechaRD(inicio);
+                    const nuevoFin = calcularFinJornada(nuevoInicio, duracion);
+                    const DOS_DIAS_MS = 2 * 24 * 60 * 60 * 1000;
+
+                    const solicitudReciente = citasCache.find(c => {
+                        if (!esEquipoPesado(c.equipo) || c.equipo.includes('Telehandler')) return false;
+                        if ((c.proyecto || '').trim().toLowerCase() !== proyecto.toLowerCase()) return false;
+                        const cInicio = fechaRD(c.inicio);
+                        const cFin = calcularFinJornada(cInicio, c.duracion);
+                        if (cFin <= nuevoInicio) return (nuevoInicio - cFin) < DOS_DIAS_MS;
+                        if (nuevoFin <= cInicio) return (cInicio - nuevoFin) < DOS_DIAS_MS;
+                        return false; // se solapan: lo maneja la verificación de conflictos de abajo
+                    });
+
+                    if (solicitudReciente) {
+                        mostrarAlerta(`❌ El proyecto "${proyecto}" ya usó un equipo pesado (${solicitudReciente.equipo}) muy cerca de esta fecha. Debe pasar al menos 2 días entre solicitudes de equipo pesado del mismo proyecto para darle chance a otros.`, 'error');
+                        return;
+                    }
+                }
+            }
 
             // Verificar conflictos
             const conflicto = verificarConflicto(equipo, inicio, duracion);
@@ -2809,6 +2852,37 @@
             if (estaFueraDeServicio(equipo)) {
                 mostrarAlerta(`🔧 El equipo "${equipo}" está fuera de servicio. Reactívalo antes de asignarlo a una obra.`, 'error');
                 return;
+            }
+
+            // Regla de equipos pesados (minicargador/telehandler): igual que al
+            // crear, cada solicitud puede ser de hasta 16h como máximo.
+            if (esEquipoPesado(equipo)) {
+                if (duracion > 16) {
+                    mostrarAlerta(`❌ "${equipo}" es un equipo pesado: cada solicitud no puede pasar de 16 horas, para que haya rejuego con otros proyectos.`, 'error');
+                    return;
+                }
+
+                if (!equipo.includes('Telehandler')) {
+                    const nuevoInicio = fechaRD(inicio);
+                    const nuevoFin = calcularFinJornada(nuevoInicio, duracion);
+                    const DOS_DIAS_MS = 2 * 24 * 60 * 60 * 1000;
+
+                    const solicitudReciente = citasCache.find(c => {
+                        if (c.id === id) return false;
+                        if (!esEquipoPesado(c.equipo) || c.equipo.includes('Telehandler')) return false;
+                        if ((c.proyecto || '').trim().toLowerCase() !== proyecto.toLowerCase()) return false;
+                        const cInicio = fechaRD(c.inicio);
+                        const cFin = calcularFinJornada(cInicio, c.duracion);
+                        if (cFin <= nuevoInicio) return (nuevoInicio - cFin) < DOS_DIAS_MS;
+                        if (nuevoFin <= cInicio) return (cInicio - nuevoFin) < DOS_DIAS_MS;
+                        return false;
+                    });
+
+                    if (solicitudReciente) {
+                        mostrarAlerta(`❌ El proyecto "${proyecto}" ya usó un equipo pesado (${solicitudReciente.equipo}) muy cerca de esta fecha. Debe pasar al menos 2 días entre solicitudes de equipo pesado del mismo proyecto.`, 'error');
+                        return;
+                    }
+                }
             }
 
             const conflicto = verificarConflicto(equipo, inicio, duracion, id);
