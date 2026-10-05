@@ -819,6 +819,59 @@
             </form>
         </div>
 
+        <div class="card" id="cardSolicitarRenta">
+            <h2 class="section-title">🚛 Solicitar Renta de Equipo</h2>
+            <p style="margin-bottom: 1.5rem; color: #6B7280;">
+                Para equipo que la empresa no posee y hay que alquilar a un proveedor externo (ej. una grúa, un generador). La solicitud queda <strong>pendiente de aprobación</strong> del administrador y se le notifica de inmediato por WhatsApp.
+            </p>
+            <form id="rentaForm">
+                <div class="form-group">
+                    <label for="rentaNombre">Nombre Completo *</label>
+                    <input type="text" id="rentaNombre" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="rentaProyecto">Proyecto *</label>
+                    <select id="rentaProyecto" required style="width: 100%; padding: 0.7rem; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 1rem;">
+                        <option value="">Selecciona un proyecto...</option>
+                        <option value="VISTA CANA">VISTA CANA</option>
+                        <option value="UNIVERSE B">UNIVERSE B</option>
+                        <option value="PLAYA SERENA">PLAYA SERENA</option>
+                        <option value="W-MARRIOTT (GARANTIA)">W-MARRIOTT (GARANTIA)</option>
+                        <option value="ZEMI EN MICHES (GARANTIA)">ZEMI EN MICHES (GARANTIA)</option>
+                        <option value="CANA ROCK II (GARANTIA)">CANA ROCK II (GARANTIA)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="rentaEquipo">Equipo a Rentar *</label>
+                    <input type="text" id="rentaEquipo" placeholder="Ej: Grúa 50 toneladas, generador 200kW..." required>
+                </div>
+
+                <div class="form-group">
+                    <label for="rentaMotivo">¿Para qué lo necesita? *</label>
+                    <textarea id="rentaMotivo" placeholder="Describe para qué se va a usar el equipo" required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="rentaNotas">Notas Adicionales</label>
+                    <textarea id="rentaNotas" placeholder="Fechas, proveedor sugerido, duración estimada, etc. (opcional)"></textarea>
+                </div>
+
+                <button type="submit">📨 Enviar Solicitud de Renta</button>
+            </form>
+        </div>
+
+        <div class="card" id="cardSolicitudesRenta">
+            <h2 class="section-title">📋 Solicitudes de Renta de Equipo</h2>
+            <p style="margin-bottom: 1rem; color: #6B7280;">
+                🟡 Pendiente | 🟢 Aprobada | 🔴 Rechazada. Solo el administrador puede aprobar, rechazar o marcar como entregada.
+            </p>
+            <div id="listaSolicitudesRenta" style="display: flex; flex-direction: column; gap: 0.7rem;">
+                <!-- Se llena automáticamente con JavaScript -->
+            </div>
+        </div>
+
         <div class="card card-equipos" id="cardEquipos">
             <h2 class="section-title">🗓️ Estado Logístico de Equipos</h2>
             <p style="margin-bottom: 1.5rem; color: #6B7280; font-size: 0.95rem; line-height: 1.6;">
@@ -1648,6 +1701,18 @@
                     }
                 )
                 .subscribe();
+
+            // Escuchar cambios en las solicitudes de renta de equipo
+            sb.channel('public:solicitudes_renta')
+                .on(
+                    'postgres_changes',
+                    { event: '*', schema: 'public', table: 'solicitudes_renta' },
+                    async (payload) => {
+                        console.log('Cambio en solicitudes de renta:', payload);
+                        await recargarSolicitudesRenta();
+                    }
+                )
+                .subscribe();
         }
 
         // Devuelve las reservas en memoria
@@ -1898,6 +1963,247 @@
 
             const mensaje = encodeURIComponent(lineas.join('\n'));
             abrirWhatsApp(`https://wa.me/${WHATSAPP_COORDINADOR}?text=${mensaje}`, ventanaPreabierta);
+        }
+
+        // ===== Solicitudes de Renta de Equipo (equipo externo, no de la flota) =====
+
+        let solicitudesRentaCache = [];
+
+        async function recargarSolicitudesRenta() {
+            const { data, error } = await sb
+                .from('solicitudes_renta')
+                .select('*')
+                .order('created_at', { ascending: false });
+            if (error) {
+                console.error('Error cargando solicitudes de renta:', error);
+                return;
+            }
+            solicitudesRentaCache = data || [];
+            renderizarSolicitudesRenta();
+        }
+
+        // Una solicitud deja de mostrarse en el panel cuando:
+        // - fue Rechazada y ya pasaron 10 minutos desde el rechazo (se conserva en
+        //   la base de datos, solo se oculta de la vista).
+        // - fue Aprobada y ya se marcó como entregada (el equipo rentado llegó a la obra).
+        // Las Pendientes y las Aprobadas sin entregar siempre se muestran.
+        function solicitudRentaVisible(s) {
+            const DIEZ_MIN_MS = 10 * 60 * 1000;
+            if (s.estado === 'Rechazada') {
+                if (!s.resuelto_en) return true;
+                return (Date.now() - new Date(s.resuelto_en).getTime()) < DIEZ_MIN_MS;
+            }
+            if (s.estado === 'Aprobada' && s.entregado_en) return false;
+            return true;
+        }
+
+        function renderizarSolicitudesRenta() {
+            const cont = document.getElementById('listaSolicitudesRenta');
+            if (!cont) return;
+
+            const visibles = solicitudesRentaCache.filter(solicitudRentaVisible);
+
+            if (visibles.length === 0) {
+                cont.innerHTML = '<p style="color:#6B7280;">No hay solicitudes de renta todavía.</p>';
+                return;
+            }
+
+            const colores = {
+                'Pendiente': { fondo: '#FEF3C7', borde: '#FCD34D', icono: '🟡' },
+                'Aprobada': { fondo: '#DCFCE7', borde: '#86EFAC', icono: '🟢' },
+                'Rechazada': { fondo: '#FEE2E2', borde: '#FCA5A5', icono: '🔴' }
+            };
+
+            cont.innerHTML = visibles.map(s => {
+                const c = colores[s.estado] || colores['Pendiente'];
+                const fecha = s.created_at ? new Date(s.created_at).toLocaleString('es-DO', { timeZone: 'America/Santo_Domingo' }) : '';
+                return `
+                    <div style="padding:0.9rem 1rem; border-radius:8px; background:${c.fondo}; border:1px solid ${c.borde};">
+                        <div style="font-weight:700; margin-bottom:0.3rem;">${c.icono} ${escapeHtml(s.equipo)} — ${escapeHtml(s.proyecto)}</div>
+                        <div style="font-size:0.9rem; color:#374151;">Solicitado por: ${escapeHtml(s.nombre)} · ${fecha}</div>
+                        <div style="font-size:0.9rem; color:#374151; margin-top:0.3rem;"><strong>Motivo:</strong> ${escapeHtml(s.motivo)}</div>
+                        ${s.notas ? `<div style="font-size:0.9rem; color:#374151; margin-top:0.2rem;"><strong>Notas:</strong> ${escapeHtml(s.notas)}</div>` : ''}
+                        <div style="font-size:0.85rem; margin-top:0.4rem; font-weight:600;">Estado: ${s.estado}</div>
+                        ${s.estado === 'Aprobada' && s.inicio ? `<div style="font-size:0.85rem; margin-top:0.2rem;">📅 ${new Date(s.inicio).toLocaleString('es-DO', { timeZone: 'America/Santo_Domingo' })} · ${s.duracion}h</div>` : ''}
+                        ${modoAdminActivo && s.estado === 'Pendiente' ? `
+                            <div style="margin-top:0.6rem; display:flex; flex-wrap:wrap; gap:0.4rem; align-items:center;">
+                                <input type="datetime-local" id="rentaAprobarFecha_${s.id}" style="padding:0.3rem; font-size:0.8rem; border:1px solid var(--color-border); border-radius:4px;">
+                                <input type="number" id="rentaAprobarDuracion_${s.id}" placeholder="Duración (h)" min="1" step="1" style="width:110px; padding:0.3rem; font-size:0.8rem; border:1px solid var(--color-border); border-radius:4px;">
+                            </div>
+                            <div style="margin-top:0.5rem;">
+                                <button type="button" onclick="aprobarRenta('${s.id}')" style="margin-right:0.4rem; padding:0.3rem 0.6rem; font-size:0.8rem; background:#10B981; color:white; border:none; border-radius:4px; cursor:pointer;">✅ Aprobar</button>
+                                <button type="button" onclick="rechazarRenta('${s.id}')" style="padding:0.3rem 0.6rem; font-size:0.8rem; background:#DC2626; color:white; border:none; border-radius:4px; cursor:pointer;">❌ Rechazar</button>
+                            </div>
+                        ` : ''}
+                        ${modoAdminActivo && s.estado === 'Aprobada' && !s.entregado_en ? `
+                            <div style="margin-top:0.6rem;">
+                                <button type="button" onclick="marcarRentaEntregada('${s.id}')" style="padding:0.3rem 0.6rem; font-size:0.8rem; background:#2563EB; color:white; border:none; border-radius:4px; cursor:pointer;">📦 Marcar como Entregada</button>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Arma el resumen de la solicitud de renta y abre WhatsApp, igual que las
+        // asignaciones normales (ventana pre-abierta dentro del gesto del usuario).
+        function enviarWhatsAppRenta(solicitud, ventanaPreabierta) {
+            const lineas = [
+                '*🚛 NUEVA SOLICITUD DE RENTA DE EQUIPO*',
+                '',
+                `Solicitante: ${solicitud.nombre}`,
+                `Proyecto: ${solicitud.proyecto}`,
+                `Equipo a rentar: ${solicitud.equipo}`,
+                `Motivo: ${solicitud.motivo}`,
+                solicitud.notas ? `Notas: ${solicitud.notas}` : null
+            ].filter(Boolean);
+
+            const mensaje = encodeURIComponent(lineas.join('\n'));
+            abrirWhatsApp(`https://wa.me/${WHATSAPP_COORDINADOR}?text=${mensaje}`, ventanaPreabierta);
+        }
+
+        const rentaForm = document.getElementById('rentaForm');
+        rentaForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            // Mismo truco que en citaForm: pre-abrir la pestaña de WhatsApp dentro
+            // del gesto del usuario para que el navegador no la bloquee.
+            let ventanaWhatsAppRenta = null;
+            try {
+                ventanaWhatsAppRenta = window.open('', '_blank');
+            } catch (err) {
+                ventanaWhatsAppRenta = null;
+            }
+            let necesitaWhatsAppRenta = false;
+
+            try {
+
+            const nombre = document.getElementById('rentaNombre').value.trim();
+            const proyecto = document.getElementById('rentaProyecto').value;
+            const equipo = document.getElementById('rentaEquipo').value.trim();
+            const motivo = document.getElementById('rentaMotivo').value.trim();
+            const notas = document.getElementById('rentaNotas').value.trim();
+
+            if (!nombre || !proyecto || !equipo || !motivo) {
+                mostrarAlerta('⚠️ Completa todos los campos requeridos', 'error');
+                return;
+            }
+
+            const solicitud = {
+                nombre, proyecto, equipo, motivo,
+                notas: notas || null,
+                estado: 'Pendiente'
+            };
+
+            const { data, error } = await sb.from('solicitudes_renta').insert(solicitud).select().single();
+            if (error) {
+                console.error('Error guardando solicitud de renta:', error);
+                mostrarAlerta(`❌ ${error.message || 'No se pudo enviar la solicitud'}`, 'error');
+                return;
+            }
+
+            necesitaWhatsAppRenta = true;
+
+            await recargarSolicitudesRenta();
+            rentaForm.reset();
+            mostrarAlerta('📨 Solicitud de renta enviada. Se notificó al coordinador por WhatsApp para que la apruebe.');
+
+            setTimeout(() => {
+                enviarWhatsAppRenta(data, ventanaWhatsAppRenta);
+            }, 400);
+
+            } finally {
+                if (!necesitaWhatsAppRenta && ventanaWhatsAppRenta && !ventanaWhatsAppRenta.closed) {
+                    ventanaWhatsAppRenta.close();
+                }
+            }
+        });
+
+        // Aprueba una solicitud de renta pendiente. El administrador debe indicar
+        // la fecha/hora y la duración del equipo rentado.
+        async function aprobarRenta(id) {
+            if (!modoAdminActivo) {
+                mostrarAlerta('🔒 Necesitas estar en modo administrador', 'error');
+                return;
+            }
+
+            const inputFecha = document.getElementById(`rentaAprobarFecha_${id}`);
+            const inputDuracion = document.getElementById(`rentaAprobarDuracion_${id}`);
+            const inicio = inputFecha ? inputFecha.value : '';
+            const duracion = inputDuracion ? parseFloat(inputDuracion.value) : NaN;
+
+            if (!inicio || !duracion || duracion <= 0) {
+                mostrarAlerta('⚠️ Indica la fecha/hora y la duración del equipo antes de aprobar', 'error');
+                return;
+            }
+
+            const { error } = await sb.rpc('admin_resolver_renta', {
+                codigo: codigoAdminActual,
+                id_solicitud: id,
+                p_estado: 'Aprobada',
+                p_inicio: inicio,
+                p_duracion: duracion
+            });
+
+            if (error) {
+                console.error('Error aprobando renta:', error);
+                mostrarAlerta('❌ No se pudo aprobar la solicitud', 'error');
+                return;
+            }
+
+            await recargarSolicitudesRenta();
+            mostrarAlerta('✅ Solicitud de renta aprobada', 'success');
+        }
+
+        // Rechaza una solicitud de renta pendiente.
+        async function rechazarRenta(id) {
+            if (!modoAdminActivo) {
+                mostrarAlerta('🔒 Necesitas estar en modo administrador', 'error');
+                return;
+            }
+            const solicitud = solicitudesRentaCache.find(s => s.id === id);
+            if (!solicitud) return;
+
+            const confirmar = confirm(`¿Rechazar la solicitud de renta de "${solicitud.equipo}" para "${solicitud.proyecto}"?`);
+            if (!confirmar) return;
+
+            const { error } = await sb.rpc('admin_resolver_renta', {
+                codigo: codigoAdminActual,
+                id_solicitud: id,
+                p_estado: 'Rechazada'
+            });
+
+            if (error) {
+                console.error('Error rechazando renta:', error);
+                mostrarAlerta('❌ No se pudo rechazar la solicitud', 'error');
+                return;
+            }
+
+            await recargarSolicitudesRenta();
+            mostrarAlerta('✅ Solicitud de renta rechazada', 'success');
+        }
+
+        // Marca una solicitud aprobada como "entregada" (el equipo rentado ya
+        // llegó a la obra) — a partir de ahí deja de mostrarse en el panel.
+        async function marcarRentaEntregada(id) {
+            if (!modoAdminActivo) {
+                mostrarAlerta('🔒 Necesitas estar en modo administrador', 'error');
+                return;
+            }
+
+            const { error } = await sb.rpc('admin_marcar_renta_entregada', {
+                codigo: codigoAdminActual,
+                id_solicitud: id
+            });
+
+            if (error) {
+                console.error('Error marcando renta entregada:', error);
+                mostrarAlerta('❌ No se pudo marcar como entregada', 'error');
+                return;
+            }
+
+            await recargarSolicitudesRenta();
+            mostrarAlerta('✅ Renta marcada como entregada', 'success');
         }
 
         // Mostrar alerta
@@ -2902,6 +3208,7 @@
                 mostrarAlerta('✅ Modo administrador activado', 'success');
                 actualizarDashboard();
                 actualizarDatalistEquipos();
+                renderizarSolicitudesRenta();
                 verificarDisponibilidadEnVivo();
             } else {
                 modoAdminActivo = false;
@@ -3324,6 +3631,7 @@
             await cargarProyectosAreasEquipos();
             await recargarCitas();
             await recargarEquipos();
+            await recargarSolicitudesRenta();
             configurarRealtime();
             actualizarDashboard();
             verificarDisponibilidadEnVivo();
@@ -3333,6 +3641,7 @@
         setInterval(async () => {
             await recargarCitas();
             await recargarEquipos();
+            await recargarSolicitudesRenta();
             actualizarDashboard();
             verificarDisponibilidadEnVivo();
         }, 60000);
