@@ -967,6 +967,16 @@
             <button type="button" onclick="vaciarBaseDatos()" style="background: var(--color-dark);">⚠️ Respaldar y Vaciar Todo</button>
         </div>
 
+        <div class="card" id="cardEquiposTemporales" style="display: none;">
+            <h2 class="section-title">🧰 Equipos Temporales</h2>
+            <p style="margin-bottom: 1rem; color: #6B7280;">
+                Equipo que normalmente no aparece en ningún proyecto. Al activarlo, queda disponible de inmediato para TODOS los proyectos; al desactivarlo, vuelve a desaparecer. Solo visible en modo administrador.
+            </p>
+            <div id="listaEquiposTemporales">
+                <!-- Se llena automáticamente con JavaScript -->
+            </div>
+        </div>
+
         <div class="card" id="cardPersonalizacion" style="display: none;">
             <h2 class="section-title">🖼️ Logo y Favicon</h2>
             <p style="margin-bottom: 2rem; color: #6B7280; line-height: 1.6;">
@@ -1327,6 +1337,97 @@
         // a proyectos de garantía. Se usa para mostrar/editar el proyecto actual de un equipo.
         let EQUIPO_PROYECTO_ACTUAL = {};
 
+        // Equipos Temporales: un conjunto fijo de equipo que normalmente está
+        // inactivo (no aparece en ningún proyecto) y que el administrador activa
+        // puntualmente cuando hace falta — en ese momento aparece disponible para
+        // TODOS los proyectos a la vez, no solo uno. A diferencia de los equipos
+        // normales, no están atados a un proyecto en la tabla `equipos`.
+        const equiposTemporales = [
+            'GDA-CA-28 Camión (Luis Polanco)',
+            'GDA-PE-518 Minicargador',
+            'GDA-CA-26 Camión (Ramón Garcia)',
+            'GDA-PE-58 Telehandler',
+            'GDA-PE-55 Minicargador',
+            'GDA-PE-54 Retro Pala',
+            'GDA-CA-22 Camión',
+            'GDA-CA-21 Camión',
+            'GDA-CA-27 Camión',
+            'GDA-PE-523 Telehandler',
+            'GDA-PE-53 Telehandler',
+            'GDA-PE-519 Retro Pala',
+            'GDA-PE-56 Retro Pala',
+            'GDA-PE-515 Minicargador'
+        ];
+
+        // Mapa equipo -> true/false (activo individualmente), cargado desde la nube
+        // para que el estado se vea igual en todos los dispositivos.
+        let equiposTemporalesEstado = {};
+
+        async function recargarEquiposTemporales() {
+            const { data, error } = await sb
+                .from('equipos_temporales_estado')
+                .select('equipo, activo');
+            if (error) {
+                console.error('Error cargando estado de equipos temporales:', error);
+                return;
+            }
+            const mapa = {};
+            (data || []).forEach(fila => { mapa[fila.equipo] = !!fila.activo; });
+            equiposTemporalesEstado = mapa;
+            actualizarDatalistEquipos();
+            renderizarListaEquiposTemporales();
+        }
+
+        // Activar / desactivar un equipo temporal específico (solo administrador)
+        // — visible para todos al instante.
+        async function toggleEquipoTemporal(equipo) {
+            if (!modoAdminActivo) {
+                mostrarAlerta('🔒 Necesitas estar en modo administrador', 'error');
+                return;
+            }
+            if (!equiposTemporales.includes(equipo)) {
+                mostrarAlerta(`❌ "${equipo}" no está en la lista de equipos temporales autorizados`, 'error');
+                return;
+            }
+            const nuevoValor = !equiposTemporalesEstado[equipo];
+            const { error } = await sb.rpc('admin_toggle_equipo_temporal', {
+                codigo: codigoAdminActual,
+                p_equipo: equipo,
+                p_activo: nuevoValor
+            });
+            if (error) {
+                console.error('Error actualizando equipo temporal:', error);
+                mostrarAlerta('❌ No se pudo actualizar el equipo', 'error');
+                return;
+            }
+            equiposTemporalesEstado[equipo] = nuevoValor;
+            actualizarDatalistEquipos();
+            renderizarListaEquiposTemporales();
+            actualizarDashboard();
+            mostrarAlerta(
+                nuevoValor
+                    ? `✅ "${equipo}" activado — ya lo ve todo el mundo`
+                    : `🔒 "${equipo}" desactivado`,
+                'success'
+            );
+        }
+
+        // Dibuja la lista de checkboxes del panel admin para activar/desactivar
+        // cada equipo temporal.
+        function renderizarListaEquiposTemporales() {
+            const cont = document.getElementById('listaEquiposTemporales');
+            if (!cont) return;
+            cont.innerHTML = equiposTemporales.map(equipo => {
+                const activo = !!equiposTemporalesEstado[equipo];
+                return `
+                    <label style="display:flex; align-items:center; gap:0.5rem; padding:0.4rem 0; cursor:pointer;">
+                        <input type="checkbox" ${activo ? 'checked' : ''} onchange="toggleEquipoTemporal('${equipo.replace(/'/g, "\\'")}')">
+                        ${escapeHtml(equipo)} ${activo ? '<span style="color:#10B981; font-weight:600;">(activo)</span>' : ''}
+                    </label>
+                `;
+            }).join('');
+        }
+
         // Muestra el campo "Área" (como lista desplegable) solo si el proyecto
         // elegido tiene áreas definidas en AREAS_POR_PROYECTO. Si el proyecto no
         // tiene áreas cargadas todavía, la fila se mantiene oculta.
@@ -1417,7 +1518,8 @@
                 }
 
                 const valorPrevio = select.value;
-                const equiposDelProyecto = EQUIPOS_POR_PROYECTO[proyecto] || [];
+                const temporalesActivos = equiposTemporales.filter(equipo => equiposTemporalesEstado[equipo]);
+                const equiposDelProyecto = [...new Set([...(EQUIPOS_POR_PROYECTO[proyecto] || []), ...temporalesActivos])];
                 const equiposActivos = equiposDelProyecto.filter(equipo => modoAdminActivo || !estaFueraDeServicio(equipo));
 
                 select.disabled = false;
@@ -1710,6 +1812,18 @@
                     async (payload) => {
                         console.log('Cambio en solicitudes de renta:', payload);
                         await recargarSolicitudesRenta();
+                    }
+                )
+                .subscribe();
+
+            // Escuchar cambios en el estado de los equipos temporales
+            sb.channel('public:equipos_temporales_estado')
+                .on(
+                    'postgres_changes',
+                    { event: '*', schema: 'public', table: 'equipos_temporales_estado' },
+                    async (payload) => {
+                        console.log('Cambio en equipos temporales:', payload);
+                        await recargarEquiposTemporales();
                     }
                 )
                 .subscribe();
@@ -3204,11 +3318,13 @@
                 indicador.style.display = 'block';
                 document.getElementById('cardReporteria').style.display = 'block';
                 document.getElementById('cardVaciarBaseDatos').style.display = 'block';
+                document.getElementById('cardEquiposTemporales').style.display = 'block';
                 document.getElementById('cardPersonalizacion').style.display = 'block';
                 mostrarAlerta('✅ Modo administrador activado', 'success');
                 actualizarDashboard();
                 actualizarDatalistEquipos();
                 renderizarSolicitudesRenta();
+                renderizarListaEquiposTemporales();
                 verificarDisponibilidadEnVivo();
             } else {
                 modoAdminActivo = false;
@@ -3632,6 +3748,7 @@
             await recargarCitas();
             await recargarEquipos();
             await recargarSolicitudesRenta();
+            await recargarEquiposTemporales();
             configurarRealtime();
             actualizarDashboard();
             verificarDisponibilidadEnVivo();
@@ -3642,6 +3759,7 @@
             await recargarCitas();
             await recargarEquipos();
             await recargarSolicitudesRenta();
+            await recargarEquiposTemporales();
             actualizarDashboard();
             verificarDisponibilidadEnVivo();
         }, 60000);
