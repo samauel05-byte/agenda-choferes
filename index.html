@@ -977,6 +977,17 @@
             </div>
         </div>
 
+        <div class="card" id="cardAgregarProyecto" style="display: none;">
+            <h2 class="section-title">🏗️ Agregar Proyecto/Obra</h2>
+            <p style="margin-bottom: 1rem; color: #6B7280;">
+                Agrega un proyecto nuevo a la lista del formulario, sin tocar código. Se guarda siempre en MAYÚSCULA. Solo visible en modo administrador.
+            </p>
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <input type="text" id="nuevoProyectoNombre" placeholder="Nombre del proyecto/obra" style="flex: 1; min-width: 200px; padding: 0.7rem; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 1rem;">
+                <button type="button" onclick="agregarProyecto()" style="width: auto; padding: 0.7rem 1.2rem;">+ Agregar</button>
+            </div>
+        </div>
+
         <div class="card" id="cardPersonalizacion" style="display: none;">
             <h2 class="section-title">🖼️ Logo y Favicon</h2>
             <p style="margin-bottom: 2rem; color: #6B7280; line-height: 1.6;">
@@ -1428,6 +1439,36 @@
             }).join('');
         }
 
+        // Agrega un proyecto/obra nuevo a la lista (solo administrador). Se
+        // guarda siempre en mayúscula, sin importar cómo se haya escrito.
+        async function agregarProyecto() {
+            if (!modoAdminActivo) {
+                mostrarAlerta('🔒 Necesitas estar en modo administrador', 'error');
+                return;
+            }
+            const input = document.getElementById('nuevoProyectoNombre');
+            const nombre = (input.value || '').trim().toUpperCase();
+            if (!nombre) {
+                mostrarAlerta('⚠️ Escribe el nombre del proyecto', 'error');
+                return;
+            }
+
+            const { error } = await sb.rpc('admin_agregar_proyecto', {
+                codigo: codigoAdminActual,
+                p_nombre: nombre
+            });
+
+            if (error) {
+                console.error('Error agregando proyecto:', error);
+                mostrarAlerta('❌ No se pudo agregar el proyecto', 'error');
+                return;
+            }
+
+            input.value = '';
+            await cargarProyectosAreasEquipos();
+            mostrarAlerta(`✅ Proyecto "${nombre}" agregado`, 'success');
+        }
+
         // Muestra el campo "Área" (como lista desplegable) solo si el proyecto
         // elegido tiene áreas definidas en AREAS_POR_PROYECTO. Si el proyecto no
         // tiene áreas cargadas todavía, la fila se mantiene oculta.
@@ -1478,6 +1519,16 @@
         // Número de WhatsApp del coordinador que recibe el resumen de cada
         // asignación programada, en formato internacional sin "+" ni espacios.
         const WHATSAPP_COORDINADOR = '18092544342';
+
+        // Proyectos que ya vienen escritos en el HTML de #proyecto y #rentaProyecto
+        // (a diferencia de equipos/áreas, estos selects no se reconstruyen desde
+        // cero en cada carga). Cualquier proyecto en la tabla `proyectos` que no
+        // esté en esta lista se considera "agregado por el admin" y se suma como
+        // opción extra sin tocar las fijas.
+        const PROYECTOS_BASE = [
+            'VISTA CANA', 'UNIVERSE B', 'PLAYA SERENA',
+            'W-MARRIOTT (GARANTIA)', 'ZEMI EN MICHES (GARANTIA)', 'CANA ROCK II (GARANTIA)'
+        ];
 
         // Cache local de las reservas (se sincroniza con Supabase)
         let citasCache = [];
@@ -1729,6 +1780,27 @@
                     datalistProyectos.appendChild(opt);
                 });
             }
+
+            // Los proyectos agregados por el admin (admin_agregar_proyecto) no
+            // están entre las opciones fijas del HTML de #proyecto/#rentaProyecto
+            // — se suman aquí sin reconstruir el select entero, igual patrón que
+            // usa este archivo para equipos: se quitan las agregadas la vez
+            // anterior y se vuelven a agregar, para no duplicar en cada refresco.
+            const proyectosAdicionales = listaProyectos
+                .map(p => p.nombre)
+                .filter(nombre => !PROYECTOS_BASE.includes(nombre));
+            ['proyecto', 'rentaProyecto'].forEach(selectId => {
+                const select = document.getElementById(selectId);
+                if (!select) return;
+                select.querySelectorAll('option[data-adicional]').forEach(o => o.remove());
+                proyectosAdicionales.forEach(nombre => {
+                    const opt = document.createElement('option');
+                    opt.value = nombre;
+                    opt.textContent = nombre;
+                    opt.dataset.adicional = '1';
+                    select.appendChild(opt);
+                });
+            });
 
             const nuevasAreas = {};
             listaAreas.forEach(a => {
@@ -3319,6 +3391,7 @@
                 document.getElementById('cardReporteria').style.display = 'block';
                 document.getElementById('cardVaciarBaseDatos').style.display = 'block';
                 document.getElementById('cardEquiposTemporales').style.display = 'block';
+                document.getElementById('cardAgregarProyecto').style.display = 'block';
                 document.getElementById('cardPersonalizacion').style.display = 'block';
                 mostrarAlerta('✅ Modo administrador activado', 'success');
                 actualizarDashboard();
