@@ -796,6 +796,14 @@
                 <div id="avisoDisponibilidad" class="aviso-disponibilidad"></div>
 
                 <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        <input type="checkbox" id="esUrgente" style="width: auto;">
+                        🚨 Es urgente
+                    </label>
+                    <small style="color: #6B7280;">Máximo 3 solicitudes urgentes por persona cada 7 días. Si choca con otra reserva, queda pendiente de aprobación del administrador en vez de bloquearse.</small>
+                </div>
+
+                <div class="form-group">
                     <label>Costo Estimado</label>
                     <div id="costoEstimado" style="padding: 0.7rem 1rem; background: #F3F4F6; border: 1px solid var(--color-border); border-radius: 6px; font-weight: 700; color: var(--color-primary);">
                         Elige el equipo y la duración
@@ -1866,6 +1874,32 @@
             abrirWhatsApp(`https://wa.me/${WHATSAPP_COORDINADOR}?text=${mensaje}`, ventanaPreabierta);
         }
 
+        // Aviso distinto cuando una solicitud urgente chocó con otra reserva y
+        // quedó pendiente de aprobación (en vez del aviso normal de asignación).
+        function enviarWhatsAppUrgenciaPendiente(cita, ventanaPreabierta) {
+            const fechaInicio = fechaRD(cita.inicio).toLocaleString('es-DO', {
+                weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+
+            const lineas = [
+                '*🚨 SOLICITUD URGENTE — PENDIENTE DE APROBACIÓN*',
+                '',
+                `Solicitante: ${cita.nombre}`,
+                `Proyecto: ${cita.proyecto}`,
+                ...(cita.area ? [`Área: ${cita.area}`] : []),
+                `Equipo: ${cita.equipo}`,
+                `Inicio solicitado: ${fechaInicio}`,
+                `Duración: ${formatearDuracionCita(cita)}`,
+                '',
+                `⚠️ Choca con otra reserva de "${cita.equipo}". Apruébala o márcala "No es Urgente" desde el panel de administrador.`,
+                `Notas: ${cita.notas}`
+            ];
+
+            const mensaje = encodeURIComponent(lineas.join('\n'));
+            abrirWhatsApp(`https://wa.me/${WHATSAPP_COORDINADOR}?text=${mensaje}`, ventanaPreabierta);
+        }
+
         // Mostrar alerta
         function mostrarAlerta(mensaje, tipo = 'success') {
             alertBox.textContent = mensaje;
@@ -1937,6 +1971,7 @@
             const duracion = duracionEnHoras(duracionHorasInput, duracionMinutosInput, duracionSegundosInput);
             const notas = document.getElementById('notas').value.trim();
             const area = document.getElementById('area').value.trim();
+            const esUrgente = document.getElementById('esUrgente').checked;
 
             limpiarErrorEquipo();
 
@@ -1957,10 +1992,30 @@
             // Traer lo más reciente de la nube antes de validar conflictos
             await recargarCitas();
 
+            // Límite de 3 solicitudes urgentes por semana por persona (ventana móvil:
+            // últimos 7 días desde que se creó cada solicitud), para que "urgente" no
+            // se use como atajo habitual y pierda su sentido.
+            if (esUrgente) {
+                const SIETE_DIAS_MS = 7 * 24 * 60 * 60 * 1000;
+                const ahoraUrgencia = Date.now();
+                const urgentesRecientes = citasCache.filter(c =>
+                    c.urgente &&
+                    (c.nombre || '').trim().toLowerCase() === nombre.toLowerCase() &&
+                    c.created_at &&
+                    (ahoraUrgencia - new Date(c.created_at).getTime()) < SIETE_DIAS_MS
+                ).length;
+
+                if (urgentesRecientes >= 3) {
+                    mostrarAlerta(`🚨 "${nombre}" ya alcanzó el límite de 3 solicitudes urgentes esta semana. Contacta al coordinador si de verdad necesitas otra.`, 'error');
+                    return;
+                }
+            }
+
             // Regla de equipos pesados (minicargador/telehandler): cada solicitud
             // puede ser de hasta 16h como máximo, para que el equipo tenga rejuego
-            // entre proyectos.
-            if (esEquipoPesado(equipo)) {
+            // entre proyectos. Las solicitudes urgentes se saltan esta regla (ya
+            // requieren aprobación manual del coordinador).
+            if (esEquipoPesado(equipo) && !esUrgente) {
                 if (duracion > 16) {
                     mostrarAlerta(`❌ "${equipo}" es un equipo pesado: cada solicitud no puede pasar de 16 horas, para que haya rejuego con otros proyectos.`, 'error');
                     return;
@@ -1991,12 +2046,15 @@
                 }
             }
 
-            // Verificar conflictos
+            // Verificar conflictos. Si es urgente, un choque no bloquea la
+            // solicitud: queda guardada como pendiente de aprobación del
+            // administrador en vez de rechazarse.
             const conflicto = verificarConflicto(equipo, inicio, duracion);
-            if (conflicto) {
+            if (conflicto && !esUrgente) {
                 mostrarAlerta(`❌ ${conflicto}`, 'error');
                 return;
             }
+            const pendienteAprobacion = !!(conflicto && esUrgente);
 
             const cita = {
                 nombre: nombre,
@@ -2011,7 +2069,9 @@
                 notas: notas,
                 fecha_agendado: new Date().toLocaleDateString('es-DO', { timeZone: 'America/Santo_Domingo' }),
                 estado: 'Activa',
-                costo: calcularCosto(equipo, duracion)
+                costo: calcularCosto(equipo, duracion),
+                urgente: esUrgente,
+                urgente_pendiente_aprobacion: pendienteAprobacion
             };
 
             const { error } = await sb.from('reservas').insert(cita);
@@ -2038,14 +2098,22 @@
             limpiarErrorEquipo();
             actualizarCostoEstimado();
             verificarDisponibilidadEnVivo();
-            mostrarAlerta('✅ Asignación programada exitosamente');
+            mostrarAlerta(
+                pendienteAprobacion
+                    ? '🚨 Solicitud urgente enviada. Se notificó al coordinador por WhatsApp para que la apruebe.'
+                    : '✅ Asignación programada exitosamente'
+            );
 
             // El WhatsApp se abre AL FINAL, después de que ya se guardó todo y se
             // vio la confirmación en pantalla. Si se abre antes, en el celular el
             // salto a WhatsApp puede pasar por encima de la asignación y parecer
             // que "no se guardó" cuando en realidad sí se guardó.
             setTimeout(() => {
-                enviarWhatsAppAsignacion(cita, ventanaWhatsApp);
+                if (pendienteAprobacion) {
+                    enviarWhatsAppUrgenciaPendiente(cita, ventanaWhatsApp);
+                } else {
+                    enviarWhatsAppAsignacion(cita, ventanaWhatsApp);
+                }
             }, 400);
 
             } finally {
@@ -2224,6 +2292,107 @@
                 }
             }
             return null;
+        }
+
+        // Igual que verificarConflicto, pero devuelve TODAS las reservas que
+        // chocan (no solo la primera) — lo necesita aprobarUrgencia() para
+        // aplazarlas todas, no solo una.
+        function buscarReservasConflictivas(equipo, inicio, duracion, excludeId = null) {
+            const citas = cargarCitas();
+            const fechaInicio = fechaRD(inicio);
+            const fechaFin = calcularFinJornada(fechaInicio, duracion);
+
+            return citas.filter(cita => {
+                if (excludeId && cita.id === excludeId) return false;
+                if (cita.equipo !== equipo) return false;
+                const citaInicio = fechaRD(cita.inicio);
+                const citaFin = calcularFinJornada(citaInicio, cita.duracion);
+                return fechaInicio < citaFin && fechaFin > citaInicio;
+            });
+        }
+
+        // Aprueba una solicitud urgente pendiente: aplaza la(s) reserva(s) en
+        // conflicto al momento justo en que el equipo queda libre de la urgencia,
+        // y quita el estado "pendiente de aprobación". Mover la(s) reserva(s) en
+        // conflicto se hace igual que moverAgendasConflictivas (actualización
+        // directa, ya permitida por las reglas de la base); la función del
+        // servidor solo verifica el código y quita el flag.
+        async function aprobarUrgencia(id) {
+            if (!modoAdminActivo) {
+                mostrarAlerta('🔒 Necesitas estar en modo administrador', 'error');
+                return;
+            }
+
+            await recargarCitas();
+            const cita = citasCache.find(c => c.id === id);
+            if (!cita) return;
+
+            const confirmar = confirm(`¿Aprobar la solicitud urgente de "${cita.nombre}" para "${cita.equipo}"? Se aplazará la reserva con la que choca.`);
+            if (!confirmar) return;
+
+            const conflictos = buscarReservasConflictivas(cita.equipo, cita.inicio, cita.duracion, cita.id);
+            const nuevoInicioConflicto = formatoInicioRD(calcularFinJornada(fechaRD(cita.inicio), cita.duracion));
+
+            for (const conflicto of conflictos) {
+                const { error: errorAplazar } = await sb.from('reservas')
+                    .update({ inicio: nuevoInicioConflicto })
+                    .eq('id', conflicto.id);
+                if (errorAplazar) {
+                    console.error('Error aplazando reserva en conflicto:', errorAplazar);
+                    mostrarAlerta('❌ No se pudo aplazar la reserva en conflicto. No se aprobó nada.', 'error');
+                    return;
+                }
+            }
+
+            const { error } = await sb.rpc('admin_aprobar_urgencia', {
+                codigo: codigoAdminActual,
+                id_reserva: id
+            });
+
+            if (error) {
+                console.error('Error aprobando urgencia:', error);
+                mostrarAlerta('❌ No se pudo aprobar la solicitud urgente', 'error');
+                return;
+            }
+
+            await recargarCitas();
+            actualizarDashboard();
+            mostrarAlerta(
+                conflictos.length > 0
+                    ? `✅ Urgencia aprobada. Se aplazó ${conflictos.length === 1 ? 'la reserva existente' : conflictos.length + ' reservas existentes'}.`
+                    : '✅ Urgencia aprobada',
+                'success'
+            );
+        }
+
+        // Marca "No es Urgente": elimina la solicitud pendiente sin tocar la
+        // reserva con la que chocaba (reusa admin_eliminar_reserva).
+        async function rechazarUrgencia(id) {
+            if (!modoAdminActivo) {
+                mostrarAlerta('🔒 Necesitas estar en modo administrador', 'error');
+                return;
+            }
+
+            const cita = citasCache.find(c => c.id === id);
+            if (!cita) return;
+
+            const confirmar = confirm(`¿Marcar "No es Urgente" la solicitud de "${cita.nombre}" para "${cita.equipo}"? Esta solicitud se eliminará; la reserva con la que chocaba no se toca.`);
+            if (!confirmar) return;
+
+            const { error } = await sb.rpc('admin_eliminar_reserva', {
+                codigo: codigoAdminActual,
+                id_reserva: id
+            });
+
+            if (error) {
+                console.error('Error rechazando urgencia:', error);
+                mostrarAlerta('❌ No se pudo eliminar la solicitud', 'error');
+                return;
+            }
+
+            await recargarCitas();
+            actualizarDashboard();
+            mostrarAlerta('✅ Solicitud eliminada. Las demás reservas siguen sin cambios.', 'success');
         }
 
         // Aviso en vivo: mientras el usuario llena el formulario, muestra de inmediato
@@ -2426,6 +2595,17 @@
                                                 return `<div style="margin-top: 0.5rem; padding: 0.5rem 0.7rem; background: #FEE2E2; color: #991B1B; border-radius: 4px; font-size: 0.8rem; font-weight: 700;">⏰ Vencido hace ${minutosVencido}m — falta marcar "Terminó su labor"</div>`;
                                             })() : ''}
                                             ${hayReservaAplazada ? `<div style="margin-top: 0.4rem; padding: 0.5rem 0.7rem; background: #FEF3C7; color: #92400E; border-radius: 4px; font-size: 0.8rem; font-weight: 700;">⚠️ Turno vencido — siguiente reserva aplazada hasta marcar terminado</div>` : ''}
+                                            ${cita.urgente_pendiente_aprobacion ? `
+                                                <div style="margin-top: 0.4rem; padding: 0.6rem 0.7rem; background: #FEE2E2; color: #991B1B; border-radius: 4px; font-size: 0.85rem;">
+                                                    <strong>🚨 Urgente pendiente de aprobación</strong> — choca con otra reserva de este equipo.
+                                                    ${modoAdminActivo ? `
+                                                        <div style="margin-top: 0.4rem; display: flex; gap: 0.4rem; flex-wrap: wrap;">
+                                                            <button onclick="aprobarUrgencia('${cita.id}')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #10B981; color: white; border: none; border-radius: 4px; cursor: pointer;">✅ Aprobar (aplaza la otra reserva)</button>
+                                                            <button onclick="rechazarUrgencia('${cita.id}')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #DC2626; color: white; border: none; border-radius: 4px; cursor: pointer;">❌ No es Urgente</button>
+                                                        </div>
+                                                    ` : ''}
+                                                </div>
+                                            ` : (cita.urgente ? `<div style="margin-top: 0.4rem; padding: 0.4rem 0.6rem; background: #FEF3C7; color: #92400E; border-radius: 4px; font-size: 0.8rem; font-weight: 600; display: inline-block;">🚨 Urgente</div>` : '')}
                                             ${(() => {
                                                 const estadoRecepcion = cita.estado_recepcion || 'pendiente';
                                                 let estadoTexto = estadoRecepcion;
@@ -2855,8 +3035,11 @@
             }
 
             // Regla de equipos pesados (minicargador/telehandler): igual que al
-            // crear, cada solicitud puede ser de hasta 16h como máximo.
-            if (esEquipoPesado(equipo)) {
+            // crear, cada solicitud puede ser de hasta 16h como máximo — salvo
+            // que la reserva ya sea una urgencia aprobada.
+            const citaOriginalEdicion = citasCache.find(c => c.id === id);
+            const esUrgenteEdicion = !!(citaOriginalEdicion && citaOriginalEdicion.urgente);
+            if (esEquipoPesado(equipo) && !esUrgenteEdicion) {
                 if (duracion > 16) {
                     mostrarAlerta(`❌ "${equipo}" es un equipo pesado: cada solicitud no puede pasar de 16 horas, para que haya rejuego con otros proyectos.`, 'error');
                     return;
