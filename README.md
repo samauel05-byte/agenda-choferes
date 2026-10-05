@@ -12,6 +12,12 @@ Sistema de agenda y control logístico para la asignación de equipos pesados (e
 - Reportería y exportación a CSV para administración.
 - Modo administrador protegido por código maestro (verificado en el servidor, con límite de intentos fallidos) para editar/eliminar asignaciones, mover equipos entre proyectos, agregar equipos nuevos y marcar equipos fuera de servicio.
 - Envío del resumen de cada asignación por WhatsApp al coordinador.
+- Reglas automáticas para equipos pesados (Minicargador/Telehandler): máximo 16h por solicitud, y 2 días de margen entre solicitudes de Minicargador del mismo proyecto.
+- Sistema de urgencias: hasta 3 solicitudes urgentes por persona cada 7 días; si una urgente choca de horario con otra reserva, queda pendiente de aprobación del administrador (con aviso distinto por WhatsApp) en vez de bloquearse.
+- Solicitud de Renta de Equipo externo (grúas, generadores, etc. que la empresa no posee): cualquiera la envía, queda pendiente de aprobación/entrega del administrador.
+- Equipos Temporales: un conjunto de equipo que el administrador activa/desactiva puntualmente, visible para todos los proyectos a la vez mientras está activo.
+- Proyectos/obras agregables desde el panel de administrador, sin tocar código.
+- Logo y favicon personalizables desde el panel de administrador.
 
 ## Stack técnico
 
