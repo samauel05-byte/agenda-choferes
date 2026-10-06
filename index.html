@@ -814,7 +814,8 @@
         <div class="card card-equipos" id="cardEquipos">
             <h2 class="section-title">🗓️ Estado Logístico de Equipos</h2>
             <p style="margin-bottom: 1.5rem; color: #6B7280; font-size: 0.95rem; line-height: 1.6;">
-                <strong>Solo muestra los equipos 🟠 En Uso ahora mismo.</strong><br>
+                <strong>Solo muestra los equipos con alguna reserva activa:</strong><br>
+                📅 Programado (reservado para más tarde) | 🟡 Pendiente de Llegada | 🟠 En Uso | ❌ No Llegó<br>
                 <span style="font-size: 0.9rem; color: #9CA3AF;">En modo administrador también se ven aquí los equipos 🔧 Fuera de Servicio, para poder reactivarlos.</span>
             </p>
             <div id="btnAgregarEquipoContainer" style="display: none; margin-bottom: 1rem;">
@@ -2842,6 +2843,14 @@
                 let estadoActual = 'Disponible';
                 let tiempoRestante = '';
 
+                // Si no hay ninguna cita que ya haya empezado, pero sí hay una
+                // agendada para más tarde, se muestra como "Programado" — para
+                // que la reserva sea visible desde que se crea, no solo cuando
+                // empieza su horario.
+                const proximaCita = !citaActual
+                    ? citasEquipo.find(cita => fechaRD(cita.inicio) > ahora)
+                    : null;
+
                 if (citaActual) {
                     const citaInicio = fechaRD(citaActual.inicio);
                     const citaFin = calcularFinJornada(citaInicio, citaActual.duracion);
@@ -2890,6 +2899,14 @@
                                 : `Disponible en ${minutos}m`;
                         }
                     }
+                } else if (proximaCita) {
+                    estadoActual = 'Programado';
+                    const citaInicioProx = fechaRD(proximaCita.inicio);
+                    const horaTexto = citaInicioProx.toLocaleString('es-DO', {
+                        timeZone: 'America/Santo_Domingo', day: 'numeric', month: 'short',
+                        hour: '2-digit', minute: '2-digit', hour12: true
+                    });
+                    tiempoRestante = `📅 Programado para ${horaTexto} — ${proximaCita.nombre}`;
                 }
 
                 // El estado "Fuera de Servicio" tiene prioridad sobre todo lo demás
@@ -2899,11 +2916,12 @@
                     tiempoRestante = '';
                 }
 
-                // Solo se muestran en este tablero los equipos que están "En Uso"
-                // ahora mismo — el resto (Disponible, Pendiente de Llegada, No
-                // Llegó) ya no ocupa espacio aquí. Excepción: en modo administrador
-                // los Fuera de Servicio se siguen viendo, para poder reactivarlos.
-                if (estadoActual !== 'En Uso' && !(fueraServicio && modoAdminActivo)) {
+                // Solo se muestran en este tablero los equipos con alguna reserva
+                // activa (en uso o programada) — un equipo realmente libre, sin
+                // ninguna reserva, ya no ocupa espacio aquí. Excepción: en modo
+                // administrador los Fuera de Servicio se siguen viendo, para
+                // poder reactivarlos.
+                if (estadoActual === 'Disponible' && !(fueraServicio && modoAdminActivo)) {
                     return;
                 }
 
@@ -2914,6 +2932,9 @@
                 } else if (estadoActual === 'No Llegó') {
                     badgeClass = 'status-no-llego';
                     emoji = '❌';
+                } else if (estadoActual === 'Programado') {
+                    badgeClass = 'status-disponible';
+                    emoji = '📅';
                 } else if (estadoActual === 'Pendiente de Llegada') {
                     badgeClass = 'status-pendiente';
                     emoji = '🟡';
@@ -3039,7 +3060,7 @@
                 `;
             });
 
-            dashboardEl.innerHTML = html || '<p style="color:#6B7280; grid-column: 1 / -1;">✓ Ningún equipo en uso ahora mismo</p>';
+            dashboardEl.innerHTML = html || '<p style="color:#6B7280; grid-column: 1 / -1;">✓ Ningún equipo con reservas activas ahora mismo</p>';
 
             verificarHoraAlmuerzo(); // Verificar si es hora de pausar por almuerzo
             verificarNoLlegada(); // Marcar automáticamente "No Llegó" si nadie marcó llegada a tiempo
