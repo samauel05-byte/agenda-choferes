@@ -2832,11 +2832,10 @@
                 return ['llegada', 'en_labor', 'pausada', 'pendiente_entrega'].includes(c.estado_recepcion);
             });
             const equiposConAgenda = [...new Set(citasActivas.map(c => c.equipo).filter(Boolean))];
-            // En modo administrador se siguen mostrando también los equipos sin
-            // agenda, para poder marcarlos/reactivarlos como fuera de servicio.
-            const equiposTodos = modoAdminActivo
-                ? [...new Set([...equiposBase, ...equiposConAgenda])]
-                : equiposConAgenda;
+            // Equipos Base (la lista real, fija) siempre están visibles, más
+            // cualquier equipo "extra" que aparezca en una reserva sin estar en la
+            // lista base (p. ej. escrito a mano) — para todos, no solo en admin.
+            const equiposTodos = [...new Set([...equiposBase, ...equiposConAgenda])];
             // Los equipos "Fuera de Servicio" se ocultan del tablero para usuarios normales;
             // solo en modo administrador se siguen mostrando (para poder reactivarlos).
             const equipos = equiposTodos.filter(e => modoAdminActivo || !estaFueraDeServicio(e));
@@ -2860,47 +2859,66 @@
                     .filter(c => !(c.completada || c.estado_recepcion === 'terminada' || c.estado_recepcion === 'no_recibido'))
                     .sort((a, b) => fechaRD(a.inicio) - fechaRD(b.inicio));
 
-                // Determinar estado actual
+                // Determinar la "cita actual": la primera (más temprana) cuyo
+                // horario ya empezó. Si hay varias que ya empezaron, la que tiene
+                // "llegada a obra" marcada siempre gana sobre una que no, sin
+                // importar cuál esté más adelante en la cola — para no mostrar
+                // "pendiente"/"no llegó" encima de un equipo que sí está trabajando.
+                const yaEmpezaron = citasEquipo.filter(cita => ahora >= fechaRD(cita.inicio));
+                const citaActual = yaEmpezaron.find(cita => !!cita.hora_llegada_real) || yaEmpezaron[0] || null;
+
                 let estadoActual = 'Disponible';
                 let tiempoRestante = '';
 
-                citasEquipo.forEach(cita => {
-                    const citaInicio = fechaRD(cita.inicio);
-                    const citaFin = calcularFinJornada(citaInicio, cita.duracion);
+                if (citaActual) {
+                    const citaInicio = fechaRD(citaActual.inicio);
+                    const citaFin = calcularFinJornada(citaInicio, citaActual.duracion);
+                    const recepcion = citaActual.estado_recepcion || 'pendiente';
 
-                    if (ahora >= citaInicio && ahora < citaFin) {
-                        const recepcion = cita.estado_recepcion || 'pendiente';
-                        if (recepcion === 'no_recibido') {
-                            // El equipo nunca llegó a la obra, así que no está
-                            // realmente "En Uso" aunque esté dentro de su horario.
-                            estadoActual = 'No Llegó';
-                            tiempoRestante = '';
-                        } else if (recepcion === 'pendiente') {
-                            // Ya empezó su horario programado pero nadie marcó
-                            // "Llegó a la obra" todavía.
-                            estadoActual = 'Pendiente de Llegada';
-                            const minutosPendiente = Math.floor((ahora - citaInicio) / (1000 * 60));
-                            tiempoRestante = minutosPendiente > 0
-                                ? `Pendiente hace ${minutosPendiente} min`
-                                : 'Pendiente de llegada';
+                    if (recepcion === 'no_recibido' && !citaActual.hora_llegada_real) {
+                        // El equipo nunca llegó a la obra.
+                        estadoActual = 'No Llegó';
+                        tiempoRestante = '';
+                    } else if (recepcion === 'pendiente') {
+                        // Ya empezó su horario programado pero nadie marcó
+                        // "Llegó a la obra" todavía.
+                        estadoActual = 'Pendiente de Llegada';
+                        const minutosRetraso = Math.max(0, Math.floor((ahora - citaInicio) / (1000 * 60)));
+                        const horasR = Math.floor(minutosRetraso / 60);
+                        const minutosR = minutosRetraso % 60;
+                        const retraso = horasR > 0 ? `${horasR}h ${minutosR}m` : `${minutosR}m`;
+                        tiempoRestante = `⚠️ Retrasado ${retraso} — falta marcar "Llegada a obra"`;
+                    } else {
+                        // Hay llegada real registrada: sigue "En Uso" aunque la
+                        // duración planificada ya se haya cumplido, hasta que
+                        // alguien marque "Terminó" explícitamente.
+                        estadoActual = 'En Uso';
+                        if (estaEnHoraDeAlmuerzo(ahora)) {
+                            // El reloj de fondo sigue corriendo, pero no se muestra
+                            // la cuenta regresiva durante la hora de almuerzo.
+                            tiempoRestante = '🍽️ En almuerzo — reanuda a la 1:00pm';
+                        } else if (ahora >= citaFin) {
+                            const minutosVencido = Math.floor((ahora - citaFin) / (1000 * 60));
+                            const horasV = Math.floor(minutosVencido / 60);
+                            const minutosV = minutosVencido % 60;
+                            const vencido = horasV > 0 ? `${horasV}h ${minutosV}m` : `${minutosV}m`;
+                            tiempoRestante = `⏰ Vencido hace ${vencido} — falta marcar "Terminó"`;
                         } else {
-                            estadoActual = 'En Uso';
                             // Mientras el equipo está pausado, la cuenta regresiva de
                             // disponibilidad se congela en el momento de la pausa (no
                             // sigue corriendo en tiempo real hasta que se reanude).
-                            const referenciaTiempo = (recepcion === 'pausada' && cita.hora_pausa)
-                                ? fechaRD(cita.hora_pausa)
+                            const referenciaTiempo = (recepcion === 'pausada' && citaActual.hora_pausa)
+                                ? fechaRD(citaActual.hora_pausa)
                                 : ahora;
                             const minutosRestantes = Math.ceil((citaFin - referenciaTiempo) / (1000 * 60));
                             const horas = Math.floor(minutosRestantes / 60);
                             const minutos = minutosRestantes % 60;
-                            const prefijo = recepcion === 'pausada' ? '⏸️ Pausado — Tiempo restante' : 'Tiempo restante';
                             tiempoRestante = horas > 0
-                                ? `${prefijo}: ${horas}h ${minutos}m`
-                                : `${prefijo}: ${minutos}m`;
+                                ? `Disponible en ${horas}h ${minutos}m`
+                                : `Disponible en ${minutos}m`;
                         }
                     }
-                });
+                }
 
                 // El estado "Fuera de Servicio" tiene prioridad sobre todo lo demás
                 const fueraServicio = estaFueraDeServicio(equipo);
@@ -2974,7 +2992,7 @@
                                             })() : ''}
                                             ${hayReservaAplazada ? `<div style="margin-top: 0.4rem; padding: 0.5rem 0.7rem; background: #FEF3C7; color: #92400E; border-radius: 4px; font-size: 0.8rem; font-weight: 700;">⚠️ Turno vencido — siguiente reserva aplazada hasta marcar terminado</div>` : ''}
                                             ${cita.urgente_pendiente_aprobacion ? `
-                                                <div style="margin-top: 0.4rem; padding: 0.6rem 0.7rem; background: #FEE2E2; color: #991B1B; border-radius: 4px; font-size: 0.85rem;">
+                                                <div style="margin-top: 0.4rem; padding: 0.6rem 0.7rem; background: #FEF3C7; color: #92400E; border-radius: 4px; font-size: 0.85rem;">
                                                     <strong>🚨 Urgente pendiente de aprobación</strong> — choca con otra reserva de este equipo.
                                                     ${modoAdminActivo ? `
                                                         <div style="margin-top: 0.4rem; display: flex; gap: 0.4rem; flex-wrap: wrap;">
@@ -2983,7 +3001,7 @@
                                                         </div>
                                                     ` : ''}
                                                 </div>
-                                            ` : (cita.urgente ? `<div style="margin-top: 0.4rem; padding: 0.4rem 0.6rem; background: #FEF3C7; color: #92400E; border-radius: 4px; font-size: 0.8rem; font-weight: 600; display: inline-block;">🚨 Urgente</div>` : '')}
+                                            ` : (cita.urgente ? `<div style="margin-top: 0.4rem; padding: 0.4rem 0.6rem; background: #FEE2E2; color: #991B1B; border-radius: 4px; font-size: 0.8rem; font-weight: 600; display: inline-block;">🚨 Urgente</div>` : '')}
                                             ${(() => {
                                                 const estadoRecepcion = cita.estado_recepcion || 'pendiente';
                                                 let estadoTexto = estadoRecepcion;
