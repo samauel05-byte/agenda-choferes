@@ -822,9 +822,8 @@
         <div class="card card-equipos" id="cardEquipos">
             <h2 class="section-title">🗓️ Estado Logístico de Equipos</h2>
             <p style="margin-bottom: 1.5rem; color: #6B7280; font-size: 0.95rem; line-height: 1.6;">
-                <strong>Estado actual de los equipos:</strong><br>
-                🟢 Disponible | 🟡 Pendiente de Llegada (ya empezó su horario pero nadie marcó llegada) | 🟠 En Uso | ❌ No Llegó (equipo no recepcionado)<br>
-                <span style="font-size: 0.9rem; color: #9CA3AF;">Los equipos 🔧 Fuera de Servicio se ocultan aquí y del formulario de reserva; solo el administrador los ve para poder reactivarlos.</span>
+                <strong>Solo muestra los equipos 🟠 En Uso ahora mismo.</strong><br>
+                <span style="font-size: 0.9rem; color: #9CA3AF;">En modo administrador también se ven aquí los equipos 🔧 Fuera de Servicio, para poder reactivarlos.</span>
             </p>
             <div id="btnAgregarEquipoContainer" style="display: none; margin-bottom: 1rem;">
                 <button type="button" onclick="abrirModalNuevoEquipo()" style="padding: 0.6rem 1rem; font-size: 0.9rem; background: #059669; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">➕ Agregar Equipo Nuevo</button>
@@ -2824,11 +2823,6 @@
             // solo en modo administrador se siguen mostrando (para poder reactivarlos).
             const equipos = equiposTodos.filter(e => modoAdminActivo || !estaFueraDeServicio(e));
 
-            const cardEquiposEl = document.getElementById('cardEquipos');
-            if (cardEquiposEl) {
-                cardEquiposEl.style.display = equipos.length > 0 ? '' : 'none';
-            }
-
             const dashboardEl = document.getElementById('dashboardEquipos');
             let html = '';
 
@@ -2909,6 +2903,14 @@
                 if (fueraServicio) {
                     estadoActual = 'Fuera de Servicio';
                     tiempoRestante = '';
+                }
+
+                // Solo se muestran en este tablero los equipos que están "En Uso"
+                // ahora mismo — el resto (Disponible, Pendiente de Llegada, No
+                // Llegó) ya no ocupa espacio aquí. Excepción: en modo administrador
+                // los Fuera de Servicio se siguen viendo, para poder reactivarlos.
+                if (estadoActual !== 'En Uso' && !(fueraServicio && modoAdminActivo)) {
+                    return;
                 }
 
                 let badgeClass, emoji;
@@ -3043,7 +3045,8 @@
                 `;
             });
 
-            dashboardEl.innerHTML = html;
+            dashboardEl.innerHTML = html || '<p style="color:#6B7280; grid-column: 1 / -1;">✓ Ningún equipo en uso ahora mismo</p>';
+
             verificarHoraAlmuerzo(); // Verificar si es hora de pausar por almuerzo
             verificarNoLlegada(); // Marcar automáticamente "No Llegó" si nadie marcó llegada a tiempo
 
