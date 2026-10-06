@@ -1353,22 +1353,11 @@
         // puntualmente cuando hace falta — en ese momento aparece disponible para
         // TODOS los proyectos a la vez, no solo uno. A diferencia de los equipos
         // normales, no están atados a un proyecto en la tabla `equipos`.
-        const equiposTemporales = [
-            'GDA-CA-28 Camión (Luis Polanco)',
-            'GDA-PE-518 Minicargador',
-            'GDA-CA-26 Camión (Ramón Garcia)',
-            'GDA-PE-58 Telehandler',
-            'GDA-PE-55 Minicargador',
-            'GDA-PE-54 Retro Pala',
-            'GDA-CA-22 Camión',
-            'GDA-CA-21 Camión',
-            'GDA-CA-27 Camión',
-            'GDA-PE-523 Telehandler',
-            'GDA-PE-53 Telehandler',
-            'GDA-PE-519 Retro Pala',
-            'GDA-PE-56 Retro Pala',
-            'GDA-PE-515 Minicargador'
-        ];
+        // Vacío por ahora: los 14 equipos reales (GDA-PE-5xx/GDA-CA-2x) están fijos
+        // cada uno a su proyecto (Vista Cana/Universe B/Playa Serena) — no pueden
+        // ser a la vez el pool flotante de temporales. Cuando haya una lista real
+        // y separada de equipo prestado puntualmente, se agrega aquí.
+        const equiposTemporales = [];
 
         // Mapa equipo -> true/false (activo individualmente), cargado desde la nube
         // para que el estado se vea igual en todos los dispositivos.
