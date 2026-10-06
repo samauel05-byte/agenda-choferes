@@ -796,14 +796,6 @@
                 <div id="avisoDisponibilidad" class="aviso-disponibilidad"></div>
 
                 <div class="form-group">
-                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-                        <input type="checkbox" id="esUrgente" style="width: auto;">
-                        🚨 Es urgente
-                    </label>
-                    <small style="color: #6B7280;">Máximo 3 solicitudes urgentes por persona cada 7 días. Si choca con otra reserva, queda pendiente de aprobación del administrador en vez de bloquearse.</small>
-                </div>
-
-                <div class="form-group">
                     <label>Costo Estimado</label>
                     <div id="costoEstimado" style="padding: 0.7rem 1rem; background: #F3F4F6; border: 1px solid var(--color-border); border-radius: 6px; font-weight: 700; color: var(--color-primary);">
                         Elige el equipo y la duración
@@ -2332,7 +2324,9 @@
             const duracion = duracionEnHoras(duracionHorasInput, duracionMinutosInput, duracionSegundosInput);
             const notas = document.getElementById('notas').value.trim();
             const area = document.getElementById('area').value.trim();
-            const esUrgente = document.getElementById('esUrgente').checked;
+            // El checkbox "Es urgente" se quitó del formulario: ya no se pueden
+            // crear reservas nuevas marcadas como urgentes desde aquí.
+            const esUrgente = false;
 
             limpiarErrorEquipo();
 
