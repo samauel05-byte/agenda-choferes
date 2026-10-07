@@ -14,7 +14,7 @@ Sistema de agenda y control logístico para la asignación de equipos pesados (e
 - Envío del resumen de cada asignación por WhatsApp al coordinador.
 - Reglas automáticas para equipos pesados (Minicargador/Telehandler): máximo 16h por solicitud, y 2 días de margen entre solicitudes de Minicargador del mismo proyecto.
 - Solicitud de Renta de Equipo externo (grúas, generadores, etc. que la empresa no posee): cualquiera la envía, queda pendiente de aprobación/entrega del administrador.
-- Topografía: módulo independiente para solicitar trabajos de la brigada topográfica (levantamientos, replanteos, niveles) en cualquier proyecto. Igual que la Renta de Equipo, la solicitud queda pendiente de aprobación del administrador, quien define fecha, duración y calcula el costo (RD$3,754/hora). El administrador lo puede publicar u ocultar para todos cuando quiera.
+- Topografía: módulo independiente para solicitar trabajos de la brigada topográfica (levantamientos, replanteos, niveles) en cualquier proyecto, indicando fecha/hora y duración deseadas. Igual que la Renta de Equipo, la solicitud queda pendiente de aprobación del administrador, quien solo aprueba o rechaza (el costo se calcula automáticamente: RD$3,754/hora × duración solicitada). El administrador lo puede publicar u ocultar para todos cuando quiera.
 - Proyectos/obras agregables desde el panel de administrador, sin tocar código.
 - Logo y favicon personalizables desde el panel de administrador.
 
