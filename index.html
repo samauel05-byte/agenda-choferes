@@ -882,7 +882,7 @@
         <div class="card" id="cardTopografia" style="display: none;">
             <h2 class="section-title">📐 Topografía</h2>
             <p style="margin-bottom: 1rem; color: #6B7280;">
-                Agenda un trabajo de la brigada topográfica (levantamientos, replanteos, niveles, etc.) para cualquier proyecto.
+                Solicita un trabajo de la brigada topográfica (levantamientos, replanteos, niveles, etc.) para cualquier proyecto. La solicitud queda <strong>pendiente de aprobación</strong> del administrador, quien define la fecha y duración.
             </p>
             <div id="btnToggleTopografiaContainer" style="display: none; margin-bottom: 1rem;">
                 <button type="button" id="btnToggleTopografia" onclick="toggleTopografiaVisible()" style="padding: 0.6rem 1rem; font-size: 0.9rem; background: #7C3AED; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">🙈 Ocultar módulo para todos</button>
@@ -917,37 +917,19 @@
                     </div>
                 </div>
 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="topoInicio">Fecha y Hora de Inicio *</label>
-                        <input type="datetime-local" id="topoInicio" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="topoDuracion">Duración (horas) *</label>
-                        <input type="number" id="topoDuracion" min="0.5" step="0.5" placeholder="0" required>
-                    </div>
-                </div>
-
                 <div class="form-group">
-                    <label>Costo Estimado</label>
-                    <div id="topoCostoEstimado" style="padding: 0.7rem 1rem; background: #F3F4F6; border: 1px solid var(--color-border); border-radius: 6px; font-weight: 700; color: var(--color-primary);">
-                        Elige la duración
-                    </div>
+                    <label for="topoNotas">¿Qué se necesita? *</label>
+                    <textarea id="topoNotas" placeholder="Qué se va a levantar, puntos de referencia, fecha deseada, requisitos especiales..." required></textarea>
                 </div>
 
-                <div class="form-group">
-                    <label for="topoNotas">Notas Adicionales</label>
-                    <textarea id="topoNotas" placeholder="Qué se va a levantar, puntos de referencia, requisitos especiales... (opcional)"></textarea>
-                </div>
-
-                <button type="submit">📐 Agendar Topografía</button>
+                <button type="submit">📐 Solicitar Topografía</button>
             </form>
         </div>
 
         <div class="card" id="cardTrabajosTopografia" style="display: none;">
             <h2 class="section-title">📐 Trabajos de Topografía</h2>
             <p style="margin-bottom: 1rem; color: #6B7280;">
-                🟡 Pendiente | 🟠 En Progreso. Los terminados dejan de mostrarse aquí.
+                🟡 Pendiente de aprobación | 🟢 Aprobada | 🟠 En Progreso | 🔴 Rechazada. Solo el administrador puede aprobar o rechazar (tarifa: RD$3,754/hora).
             </p>
             <div id="listaTopografia" style="display: flex; flex-direction: column; gap: 0.7rem;">
                 <!-- Se llena automáticamente con JavaScript -->
@@ -2343,10 +2325,6 @@
 
         // ===== Topografía (módulo independiente, el admin lo publica/oculta) =====
 
-        // Tarifa por hora de la brigada topográfica, según el cálculo de costos
-        // (referencia de mercado: RD$30,029/día ÷ 8 horas).
-        const TARIFA_TOPOGRAFIA = 3754;
-
         // Visible para todos por defecto hasta que se cargue el valor real guardado
         // en la nube; el administrador siempre lo ve, visible o no, para poder
         // gestionarlo.
@@ -2404,7 +2382,7 @@
             const { data, error } = await sb
                 .from('topografia_solicitudes')
                 .select('*')
-                .order('inicio', { ascending: true });
+                .order('created_at', { ascending: false });
             if (error) {
                 console.error('Error cargando trabajos de topografía:', error);
                 return;
@@ -2413,38 +2391,119 @@
             renderizarListaTopografia();
         }
 
+        // Una solicitud deja de mostrarse cuando:
+        // - fue Rechazada y ya pasaron 10 minutos desde el rechazo (se conserva en
+        //   la base de datos, solo se oculta de la vista) — igual que Renta.
+        // - ya se marcó como terminada.
+        function solicitudTopografiaVisible(t) {
+            const DIEZ_MIN_MS = 10 * 60 * 1000;
+            if (t.estado === 'Rechazada') {
+                if (!t.resuelto_en) return true;
+                return (Date.now() - new Date(t.resuelto_en).getTime()) < DIEZ_MIN_MS;
+            }
+            return t.estado !== 'terminado';
+        }
+
         function renderizarListaTopografia() {
             const cont = document.getElementById('listaTopografia');
             if (!cont) return;
-            const activos = topografiaCache.filter(t => t.estado !== 'terminado');
-            if (activos.length === 0) {
+            const visibles = topografiaCache.filter(solicitudTopografiaVisible);
+            if (visibles.length === 0) {
                 cont.innerHTML = '<span style="color: #10B981; font-weight: 600;">✓ Sin trabajos de topografía pendientes</span>';
                 return;
             }
             const info = {
-                pendiente: { texto: '🟡 Pendiente', color: '#92400E', fondo: '#FEF3C7' },
+                'Pendiente': { texto: '🟡 Pendiente de aprobación', color: '#92400E', fondo: '#FEF3C7' },
+                'Aprobada': { texto: '🟢 Aprobada', color: '#065F46', fondo: '#D1FAE5' },
+                'Rechazada': { texto: '🔴 Rechazada', color: '#991B1B', fondo: '#FEE2E2' },
                 en_progreso: { texto: '🟠 En Progreso', color: '#9A3412', fondo: '#FFEDD5' }
             };
-            cont.innerHTML = activos.map(t => {
+            cont.innerHTML = visibles.map(t => {
                 const estadoInfo = info[t.estado] || { texto: t.estado, color: '#374151', fondo: '#F3F4F6' };
-                const inicioFormato = fechaRD(t.inicio).toLocaleString('es-DO', { timeZone: 'America/Santo_Domingo' });
+                const inicioFormato = t.inicio ? fechaRD(t.inicio).toLocaleString('es-DO', { timeZone: 'America/Santo_Domingo' }) : null;
                 return `
                     <div style="border: 1px solid #E5E7EB; border-radius: 8px; padding: 0.8rem 1rem;">
                         <span style="display: inline-block; font-size: 0.8rem; font-weight: 600; padding: 0.25rem 0.6rem; border-radius: 4px; color: ${estadoInfo.color}; background: ${estadoInfo.fondo};">${estadoInfo.texto}</span><br>
                         📍 <strong>${escapeHtml(t.proyecto)}</strong>${t.area ? ` <span style="color:#6B7280; font-weight:400; font-size:0.85rem;">(${escapeHtml(t.area)})</span>` : ''}<br>
-                        <small>${inicioFormato}</small><br>
-                        ⏱️ Duración: ${t.duracion}h<br>
                         👤 ${escapeHtml(t.nombre)}
+                        ${inicioFormato ? `<br><small>${inicioFormato} · ${t.duracion}h</small>` : ''}
                         ${t.costo !== null && t.costo !== undefined ? `<br>💰 ${formatearMoneda(t.costo)}` : ''}
                         ${t.notas ? `<br><span style="display: block; margin-top: 0.4rem; font-size: 0.85rem; color: #374151; background: #F3F4F6; padding: 0.4rem 0.6rem; border-radius: 4px; white-space: pre-wrap;">📝 ${escapeHtml(t.notas)}</span>` : ''}
+                        ${modoAdminActivo && t.estado === 'Pendiente' ? `
+                            <div style="margin-top: 0.6rem; display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center;">
+                                <input type="datetime-local" id="topoAprobarFecha_${t.id}" style="padding: 0.3rem; font-size: 0.8rem; border: 1px solid var(--color-border); border-radius: 4px;">
+                                <input type="number" id="topoAprobarDuracion_${t.id}" placeholder="Duración (h)" min="0.5" step="0.5" style="width: 110px; padding: 0.3rem; font-size: 0.8rem; border: 1px solid var(--color-border); border-radius: 4px;">
+                            </div>
+                            <div style="margin-top: 0.5rem; display: flex; gap: 0.4rem; flex-wrap: wrap;">
+                                <button onclick="aprobarTopografia('${t.id}')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #10B981; color: white; border: none; border-radius: 4px; cursor: pointer;">✅ Aprobar</button>
+                                <button onclick="rechazarTopografia('${t.id}')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #DC2626; color: white; border: none; border-radius: 4px; cursor: pointer;">❌ Rechazar</button>
+                            </div>
+                        ` : ''}
                         <div style="margin-top: 0.5rem; display: flex; gap: 0.4rem; flex-wrap: wrap;">
-                            ${t.estado === 'pendiente' ? `<button onclick="marcarTopografia('${t.id}', 'en_progreso')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #10B981; color: white; border: none; border-radius: 4px; cursor: pointer;">▶️ Iniciar</button>` : ''}
+                            ${t.estado === 'Aprobada' ? `<button onclick="marcarTopografia('${t.id}', 'en_progreso')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #10B981; color: white; border: none; border-radius: 4px; cursor: pointer;">▶️ Iniciar</button>` : ''}
                             ${t.estado === 'en_progreso' ? `<button onclick="marcarTopografia('${t.id}', 'terminado')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #DC2626; color: white; border: none; border-radius: 4px; cursor: pointer;">✅ Terminó</button>` : ''}
                             ${modoAdminActivo ? `<button onclick="eliminarTopografia('${t.id}')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #EF4444; color: white; border: none; border-radius: 4px; cursor: pointer;">🗑️ Eliminar</button>` : ''}
                         </div>
                     </div>
                 `;
             }).join('');
+        }
+
+        // Aprueba una solicitud pendiente. El administrador debe indicar la
+        // fecha/hora y la duración del trabajo (el costo se calcula en el servidor).
+        async function aprobarTopografia(id) {
+            if (!modoAdminActivo) {
+                mostrarAlerta('🔒 Necesitas estar en modo administrador', 'error');
+                return;
+            }
+            const inputFecha = document.getElementById(`topoAprobarFecha_${id}`);
+            const inputDuracion = document.getElementById(`topoAprobarDuracion_${id}`);
+            const inicio = inputFecha ? inputFecha.value : '';
+            const duracion = inputDuracion ? parseFloat(inputDuracion.value) : NaN;
+
+            if (!inicio || !duracion || duracion <= 0) {
+                mostrarAlerta('⚠️ Indica la fecha/hora y la duración antes de aprobar', 'error');
+                return;
+            }
+
+            const { error } = await sb.rpc('admin_resolver_topografia', {
+                codigo: codigoAdminActual,
+                id_solicitud: id,
+                p_estado: 'Aprobada',
+                p_inicio: inicio,
+                p_duracion: duracion
+            });
+            if (error) {
+                console.error('Error aprobando topografía:', error);
+                mostrarAlerta('❌ No se pudo aprobar la solicitud', 'error');
+                return;
+            }
+            await recargarTopografia();
+            mostrarAlerta('✅ Solicitud de topografía aprobada', 'success');
+        }
+
+        async function rechazarTopografia(id) {
+            if (!modoAdminActivo) {
+                mostrarAlerta('🔒 Necesitas estar en modo administrador', 'error');
+                return;
+            }
+            const solicitud = topografiaCache.find(t => t.id === id);
+            if (!solicitud) return;
+            const confirmar = confirm(`¿Rechazar la solicitud de topografía de "${solicitud.nombre}" para "${solicitud.proyecto}"?`);
+            if (!confirmar) return;
+
+            const { error } = await sb.rpc('admin_resolver_topografia', {
+                codigo: codigoAdminActual,
+                id_solicitud: id,
+                p_estado: 'Rechazada'
+            });
+            if (error) {
+                console.error('Error rechazando topografía:', error);
+                mostrarAlerta('❌ No se pudo rechazar la solicitud', 'error');
+                return;
+            }
+            await recargarTopografia();
+            mostrarAlerta('✅ Solicitud de topografía rechazada', 'success');
         }
 
         async function marcarTopografia(id, nuevoEstado) {
@@ -2488,42 +2547,31 @@
             toggleAreaGroup('topoProyecto', 'topoArea', 'topoAreaGroupRow');
         });
 
-        document.getElementById('topoDuracion').addEventListener('input', () => {
-            const duracion = parseFloat(document.getElementById('topoDuracion').value) || 0;
-            const el = document.getElementById('topoCostoEstimado');
-            el.textContent = duracion > 0 ? formatearMoneda(duracion * TARIFA_TOPOGRAFIA) : 'Elige la duración';
-        });
-
         const topografiaForm = document.getElementById('topografiaForm');
         topografiaForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const nombre = document.getElementById('topoNombre').value.trim();
             const proyecto = document.getElementById('topoProyecto').value;
             const area = document.getElementById('topoArea').value.trim();
-            const inicio = document.getElementById('topoInicio').value;
-            const duracion = parseFloat(document.getElementById('topoDuracion').value) || 0;
             const notas = document.getElementById('topoNotas').value.trim();
 
-            if (!nombre || !proyecto || !inicio || !duracion) {
-                mostrarAlerta('⚠️ Completa nombre, proyecto, fecha/hora y duración', 'error');
+            if (!nombre || !proyecto || !notas) {
+                mostrarAlerta('⚠️ Completa nombre, proyecto y qué se necesita', 'error');
                 return;
             }
 
-            const costo = duracion * TARIFA_TOPOGRAFIA;
-
             const { error } = await sb.from('topografia_solicitudes').insert({
-                nombre, proyecto, area: area || null, inicio, duracion, notas: notas || null, costo
+                nombre, proyecto, area: area || null, notas
             });
             if (error) {
-                console.error('Error guardando trabajo de topografía:', error);
-                mostrarAlerta(`❌ ${error.message || 'No se pudo agendar'}`, 'error');
+                console.error('Error guardando solicitud de topografía:', error);
+                mostrarAlerta(`❌ ${error.message || 'No se pudo enviar la solicitud'}`, 'error');
                 return;
             }
 
             topografiaForm.reset();
-            document.getElementById('topoCostoEstimado').textContent = 'Elige la duración';
             await recargarTopografia();
-            mostrarAlerta('✅ Trabajo de topografía agendado', 'success');
+            mostrarAlerta('📨 Solicitud de topografía enviada. Queda pendiente de aprobación del administrador.', 'success');
         });
 
         // Mostrar alerta
