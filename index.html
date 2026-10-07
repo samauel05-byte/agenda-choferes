@@ -879,6 +879,81 @@
             </div>
         </div>
 
+        <div class="card" id="cardTopografia" style="display: none;">
+            <h2 class="section-title">📐 Topografía</h2>
+            <p style="margin-bottom: 1rem; color: #6B7280;">
+                Agenda un trabajo de la brigada topográfica (levantamientos, replanteos, niveles, etc.) para cualquier proyecto.
+            </p>
+            <div id="btnToggleTopografiaContainer" style="display: none; margin-bottom: 1rem;">
+                <button type="button" id="btnToggleTopografia" onclick="toggleTopografiaVisible()" style="padding: 0.6rem 1rem; font-size: 0.9rem; background: #7C3AED; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">🙈 Ocultar módulo para todos</button>
+            </div>
+            <form id="topografiaForm">
+                <div class="form-group">
+                    <label for="topoNombre">Nombre Completo *</label>
+                    <input type="text" id="topoNombre" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="topoProyecto">Proyecto *</label>
+                        <select id="topoProyecto" required style="width: 100%; padding: 0.7rem; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 1rem;">
+                            <option value="">Selecciona un proyecto...</option>
+                            <option value="VISTA CANA">VISTA CANA</option>
+                            <option value="UNIVERSE B">UNIVERSE B</option>
+                            <option value="PLAYA SERENA">PLAYA SERENA</option>
+                            <option value="W-MARRIOTT (GARANTIA)">W-MARRIOTT (GARANTIA)</option>
+                            <option value="ZEMI EN MICHES (GARANTIA)">ZEMI EN MICHES (GARANTIA)</option>
+                            <option value="CANA ROCK II (GARANTIA)">CANA ROCK II (GARANTIA)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row" id="topoAreaGroupRow" style="display: none;">
+                    <div class="form-group">
+                        <label for="topoArea">Área</label>
+                        <select id="topoArea">
+                            <option value="">Selecciona un área...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="topoInicio">Fecha y Hora de Inicio *</label>
+                        <input type="datetime-local" id="topoInicio" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="topoDuracion">Duración (horas) *</label>
+                        <input type="number" id="topoDuracion" min="0.5" step="0.5" placeholder="0" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Costo Estimado</label>
+                    <div id="topoCostoEstimado" style="padding: 0.7rem 1rem; background: #F3F4F6; border: 1px solid var(--color-border); border-radius: 6px; font-weight: 700; color: var(--color-primary);">
+                        Elige la duración
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="topoNotas">Notas Adicionales</label>
+                    <textarea id="topoNotas" placeholder="Qué se va a levantar, puntos de referencia, requisitos especiales... (opcional)"></textarea>
+                </div>
+
+                <button type="submit">📐 Agendar Topografía</button>
+            </form>
+        </div>
+
+        <div class="card" id="cardTrabajosTopografia" style="display: none;">
+            <h2 class="section-title">📐 Trabajos de Topografía</h2>
+            <p style="margin-bottom: 1rem; color: #6B7280;">
+                🟡 Pendiente | 🟠 En Progreso. Los terminados dejan de mostrarse aquí.
+            </p>
+            <div id="listaTopografia" style="display: flex; flex-direction: column; gap: 0.7rem;">
+                <!-- Se llena automáticamente con JavaScript -->
+            </div>
+        </div>
+
         <!-- SECCIÓN DE REPORTERÍA (SOLO ADMIN) -->
         <div class="card" id="cardReporteria" style="margin-top: 2rem; display: none;">
             <h2 class="section-title">📊 Reportería de Operaciones</h2>
@@ -1679,7 +1754,7 @@
             const proyectosAdicionales = listaProyectos
                 .map(p => p.nombre)
                 .filter(nombre => !PROYECTOS_BASE.includes(nombre));
-            ['proyecto', 'rentaProyecto'].forEach(selectId => {
+            ['proyecto', 'rentaProyecto', 'topoProyecto'].forEach(selectId => {
                 const select = document.getElementById(selectId);
                 if (!select) return;
                 select.querySelectorAll('option[data-adicional]').forEach(o => o.remove());
@@ -1774,6 +1849,18 @@
                     async (payload) => {
                         console.log('Cambio en solicitudes de renta:', payload);
                         await recargarSolicitudesRenta();
+                    }
+                )
+                .subscribe();
+
+            // Escuchar cambios en los trabajos de topografía
+            sb.channel('public:topografia_solicitudes')
+                .on(
+                    'postgres_changes',
+                    { event: '*', schema: 'public', table: 'topografia_solicitudes' },
+                    async (payload) => {
+                        console.log('Cambio en topografía:', payload);
+                        await recargarTopografia();
                     }
                 )
                 .subscribe();
@@ -2253,6 +2340,191 @@
             await recargarSolicitudesRenta();
             mostrarAlerta('✅ Renta marcada como entregada', 'success');
         }
+
+        // ===== Topografía (módulo independiente, el admin lo publica/oculta) =====
+
+        // Tarifa por hora de la brigada topográfica, según el cálculo de costos
+        // (referencia de mercado: RD$30,029/día ÷ 8 horas).
+        const TARIFA_TOPOGRAFIA = 3754;
+
+        // Visible para todos por defecto hasta que se cargue el valor real guardado
+        // en la nube; el administrador siempre lo ve, visible o no, para poder
+        // gestionarlo.
+        let topografiaVisible = true;
+        let topografiaCache = [];
+
+        async function cargarTopografiaVisible() {
+            const { data, error } = await sb
+                .from('configuracion')
+                .select('activo')
+                .eq('clave', 'topografia_visible')
+                .maybeSingle();
+            if (error) {
+                console.error('Error cargando visibilidad de topografía:', error);
+                return;
+            }
+            topografiaVisible = data ? !!data.activo : true;
+            actualizarVisibilidadTopografia();
+        }
+
+        function actualizarVisibilidadTopografia() {
+            const visible = topografiaVisible || modoAdminActivo;
+            const cardForm = document.getElementById('cardTopografia');
+            const cardLista = document.getElementById('cardTrabajosTopografia');
+            if (cardForm) cardForm.style.display = visible ? '' : 'none';
+            if (cardLista) cardLista.style.display = visible ? '' : 'none';
+            const btn = document.getElementById('btnToggleTopografia');
+            if (btn) {
+                btn.textContent = topografiaVisible ? '🙈 Ocultar módulo para todos' : '👁️ Publicar módulo para todos';
+            }
+        }
+
+        async function toggleTopografiaVisible() {
+            if (!modoAdminActivo) {
+                mostrarAlerta('🔒 Necesitas estar en modo administrador', 'error');
+                return;
+            }
+            const nuevoValor = !topografiaVisible;
+            const { error } = await sb.from('configuracion').upsert({
+                clave: 'topografia_visible',
+                valor: null,
+                activo: nuevoValor
+            });
+            if (error) {
+                console.error('Error actualizando visibilidad de topografía:', error);
+                mostrarAlerta('❌ No se pudo actualizar', 'error');
+                return;
+            }
+            topografiaVisible = nuevoValor;
+            actualizarVisibilidadTopografia();
+            mostrarAlerta(nuevoValor ? '✅ Módulo de Topografía publicado para todos' : '🔒 Módulo de Topografía oculto para todos', 'success');
+        }
+
+        async function recargarTopografia() {
+            const { data, error } = await sb
+                .from('topografia_solicitudes')
+                .select('*')
+                .order('inicio', { ascending: true });
+            if (error) {
+                console.error('Error cargando trabajos de topografía:', error);
+                return;
+            }
+            topografiaCache = data || [];
+            renderizarListaTopografia();
+        }
+
+        function renderizarListaTopografia() {
+            const cont = document.getElementById('listaTopografia');
+            if (!cont) return;
+            const activos = topografiaCache.filter(t => t.estado !== 'terminado');
+            if (activos.length === 0) {
+                cont.innerHTML = '<span style="color: #10B981; font-weight: 600;">✓ Sin trabajos de topografía pendientes</span>';
+                return;
+            }
+            const info = {
+                pendiente: { texto: '🟡 Pendiente', color: '#92400E', fondo: '#FEF3C7' },
+                en_progreso: { texto: '🟠 En Progreso', color: '#9A3412', fondo: '#FFEDD5' }
+            };
+            cont.innerHTML = activos.map(t => {
+                const estadoInfo = info[t.estado] || { texto: t.estado, color: '#374151', fondo: '#F3F4F6' };
+                const inicioFormato = fechaRD(t.inicio).toLocaleString('es-DO', { timeZone: 'America/Santo_Domingo' });
+                return `
+                    <div style="border: 1px solid #E5E7EB; border-radius: 8px; padding: 0.8rem 1rem;">
+                        <span style="display: inline-block; font-size: 0.8rem; font-weight: 600; padding: 0.25rem 0.6rem; border-radius: 4px; color: ${estadoInfo.color}; background: ${estadoInfo.fondo};">${estadoInfo.texto}</span><br>
+                        📍 <strong>${escapeHtml(t.proyecto)}</strong>${t.area ? ` <span style="color:#6B7280; font-weight:400; font-size:0.85rem;">(${escapeHtml(t.area)})</span>` : ''}<br>
+                        <small>${inicioFormato}</small><br>
+                        ⏱️ Duración: ${t.duracion}h<br>
+                        👤 ${escapeHtml(t.nombre)}
+                        ${t.costo !== null && t.costo !== undefined ? `<br>💰 ${formatearMoneda(t.costo)}` : ''}
+                        ${t.notas ? `<br><span style="display: block; margin-top: 0.4rem; font-size: 0.85rem; color: #374151; background: #F3F4F6; padding: 0.4rem 0.6rem; border-radius: 4px; white-space: pre-wrap;">📝 ${escapeHtml(t.notas)}</span>` : ''}
+                        <div style="margin-top: 0.5rem; display: flex; gap: 0.4rem; flex-wrap: wrap;">
+                            ${t.estado === 'pendiente' ? `<button onclick="marcarTopografia('${t.id}', 'en_progreso')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #10B981; color: white; border: none; border-radius: 4px; cursor: pointer;">▶️ Iniciar</button>` : ''}
+                            ${t.estado === 'en_progreso' ? `<button onclick="marcarTopografia('${t.id}', 'terminado')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #DC2626; color: white; border: none; border-radius: 4px; cursor: pointer;">✅ Terminó</button>` : ''}
+                            ${modoAdminActivo ? `<button onclick="eliminarTopografia('${t.id}')" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #EF4444; color: white; border: none; border-radius: 4px; cursor: pointer;">🗑️ Eliminar</button>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function marcarTopografia(id, nuevoEstado) {
+            const updateData = { estado: nuevoEstado };
+            const ahora = new Date().toISOString();
+            if (nuevoEstado === 'en_progreso') updateData.hora_inicio_real = ahora;
+            if (nuevoEstado === 'terminado') updateData.hora_fin_real = ahora;
+
+            const { error } = await sb.from('topografia_solicitudes').update(updateData).eq('id', id);
+            if (error) {
+                console.error('Error actualizando trabajo de topografía:', error);
+                mostrarAlerta('❌ No se pudo actualizar', 'error');
+                return;
+            }
+            await recargarTopografia();
+            mostrarAlerta('✅ Actualizado', 'success');
+        }
+
+        async function eliminarTopografia(id) {
+            if (!modoAdminActivo) {
+                mostrarAlerta('🔒 Necesitas estar en modo administrador', 'error');
+                return;
+            }
+            const confirmar = confirm('¿Eliminar este trabajo de topografía?');
+            if (!confirmar) return;
+
+            const { error } = await sb.rpc('admin_eliminar_topografia', {
+                codigo: codigoAdminActual,
+                id_solicitud: id
+            });
+            if (error) {
+                console.error('Error eliminando trabajo de topografía:', error);
+                mostrarAlerta('❌ No se pudo eliminar', 'error');
+                return;
+            }
+            await recargarTopografia();
+            mostrarAlerta('✅ Eliminado', 'success');
+        }
+
+        document.getElementById('topoProyecto').addEventListener('input', () => {
+            toggleAreaGroup('topoProyecto', 'topoArea', 'topoAreaGroupRow');
+        });
+
+        document.getElementById('topoDuracion').addEventListener('input', () => {
+            const duracion = parseFloat(document.getElementById('topoDuracion').value) || 0;
+            const el = document.getElementById('topoCostoEstimado');
+            el.textContent = duracion > 0 ? formatearMoneda(duracion * TARIFA_TOPOGRAFIA) : 'Elige la duración';
+        });
+
+        const topografiaForm = document.getElementById('topografiaForm');
+        topografiaForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const nombre = document.getElementById('topoNombre').value.trim();
+            const proyecto = document.getElementById('topoProyecto').value;
+            const area = document.getElementById('topoArea').value.trim();
+            const inicio = document.getElementById('topoInicio').value;
+            const duracion = parseFloat(document.getElementById('topoDuracion').value) || 0;
+            const notas = document.getElementById('topoNotas').value.trim();
+
+            if (!nombre || !proyecto || !inicio || !duracion) {
+                mostrarAlerta('⚠️ Completa nombre, proyecto, fecha/hora y duración', 'error');
+                return;
+            }
+
+            const costo = duracion * TARIFA_TOPOGRAFIA;
+
+            const { error } = await sb.from('topografia_solicitudes').insert({
+                nombre, proyecto, area: area || null, inicio, duracion, notas: notas || null, costo
+            });
+            if (error) {
+                console.error('Error guardando trabajo de topografía:', error);
+                mostrarAlerta(`❌ ${error.message || 'No se pudo agendar'}`, 'error');
+                return;
+            }
+
+            topografiaForm.reset();
+            document.getElementById('topoCostoEstimado').textContent = 'Elige la duración';
+            await recargarTopografia();
+            mostrarAlerta('✅ Trabajo de topografía agendado', 'success');
+        });
 
         // Mostrar alerta
         function mostrarAlerta(mensaje, tipo = 'success') {
@@ -3294,10 +3566,13 @@
                 document.getElementById('cardVaciarBaseDatos').style.display = 'block';
                 document.getElementById('cardAgregarProyecto').style.display = 'block';
                 document.getElementById('cardPersonalizacion').style.display = 'block';
+                document.getElementById('btnToggleTopografiaContainer').style.display = 'block';
                 mostrarAlerta('✅ Modo administrador activado', 'success');
                 actualizarDashboard();
                 actualizarDatalistEquipos();
                 renderizarSolicitudesRenta();
+                actualizarVisibilidadTopografia();
+                renderizarListaTopografia();
                 verificarDisponibilidadEnVivo();
             } else {
                 modoAdminActivo = false;
@@ -3721,6 +3996,8 @@
             await recargarCitas();
             await recargarEquipos();
             await recargarSolicitudesRenta();
+            await cargarTopografiaVisible();
+            await recargarTopografia();
             configurarRealtime();
             actualizarDashboard();
             verificarDisponibilidadEnVivo();
@@ -3731,6 +4008,8 @@
             await recargarCitas();
             await recargarEquipos();
             await recargarSolicitudesRenta();
+            await cargarTopografiaVisible();
+            await recargarTopografia();
             actualizarDashboard();
             verificarDisponibilidadEnVivo();
         }, 60000);
