@@ -10,7 +10,7 @@ Sistema de agenda y control logístico para la asignación de equipos pesados (e
 - Sigue el ciclo de vida completo de cada asignación: pendiente → llegada → labor en progreso → pausada (con motivo) → terminada → equipo liberado, incluyendo marcado automático de "No Llegó" cuando corresponde.
 - Tablero en tiempo real del estado de cada equipo (disponible, en uso, pendiente de llegada, fuera de servicio) con actualización automática vía Supabase Realtime.
 - Reportería y exportación a CSV para administración.
-- Modo administrador protegido por código maestro (verificado en el servidor, con límite de intentos fallidos) para editar/eliminar asignaciones, mover equipos entre proyectos, agregar equipos nuevos y marcar equipos fuera de servicio.
+- Modo administrador protegido por código maestro (verificado en el servidor, con límite de intentos fallidos) para editar/eliminar asignaciones, mover equipos entre proyectos, agregar equipos nuevos y marcar equipos fuera de servicio. Un equipo puede marcarse como disponible para cualquier proyecto (ej. el Rodillo), sin estar atado a uno solo.
 - Envío del resumen de cada asignación por WhatsApp al coordinador.
 - Reglas automáticas para equipos pesados (Minicargador/Telehandler): máximo 16h por solicitud, y 2 días de margen entre solicitudes de Minicargador del mismo proyecto.
 - Solicitud de Renta de Equipo externo (grúas, generadores, etc. que la empresa no posee): cualquiera la envía, queda pendiente de aprobación/entrega del administrador.
