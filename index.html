@@ -1395,7 +1395,9 @@
         let EQUIPOS_POR_PROYECTO = {};
         // Mapa nombre de equipo -> nombre del proyecto dueño real (equipos.proyecto_id),
         // a diferencia de EQUIPOS_POR_PROYECTO que también incluye equipos "prestados"
-        // a proyectos de garantía. Se usa para mostrar/editar el proyecto actual de un equipo.
+        // a proyectos de garantía y equipos marcados como disponibles para cualquier
+        // proyecto (equipos.disponible_todos_proyectos). Se usa para mostrar/editar
+        // el proyecto actual de un equipo.
         let EQUIPO_PROYECTO_ACTUAL = {};
 
         // Agrega un proyecto/obra nuevo a la lista (solo administrador). Se
@@ -1716,7 +1718,7 @@
             const [{ data: proyectos, error: errP }, { data: areas, error: errA }, { data: equipos, error: errE }] = await Promise.all([
                 sb.from('proyectos').select('id, nombre, es_garantia').order('nombre'),
                 sb.from('areas').select('proyecto_id, nombre'),
-                sb.from('equipos').select('nombre, proyecto_id')
+                sb.from('equipos').select('nombre, proyecto_id, disponible_todos_proyectos')
             ]);
 
             if (errP || errA || errE) {
@@ -1773,7 +1775,7 @@
             listaProyectos.forEach(p => {
                 nuevosEquipos[p.nombre] = p.es_garantia
                     ? todosLosNombresEquipos
-                    : listaEquipos.filter(e => e.proyecto_id === p.id).map(e => e.nombre);
+                    : listaEquipos.filter(e => e.proyecto_id === p.id || e.disponible_todos_proyectos).map(e => e.nombre);
             });
             EQUIPOS_POR_PROYECTO = nuevosEquipos;
 
